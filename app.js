@@ -15,6 +15,15 @@ const MOCK = QS.has("mock") && ["localhost", "127.0.0.1"].includes(location.host
 let lang = QS.get("lang") === "en" ? "en" : QS.get("lang") === "ko" ? "ko" : (localStorage.getItem("stylist.lang") || "ko");
 const T = {
   tab_today: { ko: "오늘", en: "Today" }, tab_closet: { ko: "옷장", en: "Closet" }, tab_add: { ko: "등록", en: "Add" }, tab_buy: { ko: "구매", en: "Buy" },
+  // 설정 · Gemini 오류
+  set: {
+    ko: { title: "설정", key: "Gemini API 키", keyNote: "(이 기기에만 저장)", show: "보기", hide: "숨기기", model: "Gemini 모델", reload: "모델 목록 다시 불러오기", modelNote: "키를 넣으면 쓸 수 있는 모델이 목록으로 나와요.", needKeyFirst: "키를 먼저 넣어 주세요.", loading: "모델 목록을 불러오는 중…", loaded: (n) => `쓸 수 있는 모델 ${n}개예요. Flash는 빠르고 저렴하고, Pro는 느리지만 더 꼼꼼해요.`, gone: (m) => `${m}은(는) 이제 쓸 수 없어요.`, place: "날씨 위치 이름", lat: "위도", lon: "경도", geo: "현재 위치로", geoFail: "위치를 가져오지 못했어요", save: "저장", exp: "내 기록 내려받기", logout: "로그아웃" },
+    en: { title: "Settings", key: "Gemini API key", keyNote: "(stored on this device only)", show: "Show", hide: "Hide", model: "Gemini model", reload: "Reload model list", modelNote: "Enter your key to see the models you can use.", needKeyFirst: "Enter the key first.", loading: "Loading models…", loaded: (n) => `${n} models available. Flash is fast and cheap; Pro is slower but more careful.`, gone: (m) => `${m} is no longer available.`, place: "Weather location", lat: "Latitude", lon: "Longitude", geo: "Use current location", geoFail: "Couldn't get your location", save: "Save", exp: "Download my records", logout: "Log out" },
+  },
+  aiErr: {
+    ko: { key: "Gemini 키가 맞지 않아요. 설정에서 키를 확인해 주세요.", model: "고른 Gemini 모델을 쓸 수 없어요. 설정에서 다른 모델을 골라 주세요.", busy: "요청이 많아 잠시 막혔어요. 1분 뒤에 다시 시도해 주세요.", down: "Gemini 쪽에 문제가 있어요. 잠시 뒤 다시 시도해 주세요." },
+    en: { key: "The Gemini key was rejected. Check it in Settings.", model: "That Gemini model isn't available. Pick another in Settings.", busy: "Too many requests right now. Try again in a minute.", down: "Gemini is having trouble. Try again shortly." },
+  },
   // 오늘
   tpo: { ko: { work: "출근", out: "외출", special: "특별한 날" }, en: { work: "Work", out: "Out", special: "Occasion" } },
   occ: { ko: { dinner: "근사한 저녁", interview: "면접", concert: "공연", party: "회사 파티" }, en: { dinner: "Nice dinner", interview: "Interview", concert: "Concert", party: "Office party" } },
@@ -140,7 +149,7 @@ const settings = {
   set(patch) { localStorage.setItem("stylist.settings", JSON.stringify({ ...this.get(), ...patch })); },
   get key() { return localStorage.getItem("stylist.gemini") || ""; },
   set key(v) { v ? localStorage.setItem("stylist.gemini", v) : localStorage.removeItem("stylist.gemini"); },
-  get model() { return this.get().model || "gemini-2.5-flash"; },
+  get model() { return this.get().model || DEFAULT_MODEL; },
   get home() { return this.get().home || HOME; },
 };
 
@@ -229,14 +238,14 @@ const label = (k, v) => { const f = ATTR_FIELDS.find((x) => x[0] === k); return 
 // ─────────────────────────────────────────── Gemini
 async function gemini(parts, { json = true, schema = null, model = settings.model } = {}) {
   const key = settings.key;
-  if (!key) { openSettings(); throw new Error("Gemini 키가 없습니다"); }
+  if (!key) { openSettings(); throw new Error(t("needKey")[0]); }
   const body = { contents: [{ role: "user", parts }], generationConfig: {} };
   if (json) body.generationConfig.responseMimeType = "application/json";
   if (schema) body.generationConfig.responseSchema = schema;
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body),
   });
-  if (!res.ok) { const t = await res.text().catch(() => ""); throw new Error(`Gemini ${res.status}: ${t.slice(0, 200)}`); }
+  if (!res.ok) throw new Error(friendlyAiError(res.status, await res.text().catch(() => "")));
   const data = await res.json();
   const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
   if (!json) return text;
@@ -730,12 +739,12 @@ async function renderToday() {
   if (!items.length) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("emptyCloset")[0]}</b>${t("emptyCloset")[1]}</div>`; return bindHead(); }
   if (!rec) { try { rec = JSON.parse(localStorage.getItem(recKey())); } catch {} if (rec && !(rec.outfits || []).some((o) => o && o.items.every(byId))) rec = null; }
   if (!rec) {
-    if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" id="td-key" style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); $("td-key").onclick = openSettings; return; }
+    if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
     body.innerHTML = headHtml() + `<div class="empty"><b>${t("making")[0]}</b>${t("making")[1](candidates().length)}</div>`; bindHead();
     const want = recKey();
     let r; try { r = await recommend(); } catch (e) { r = { error: e.message }; }
     if (want !== recKey()) return;                                   // 기다리는 사이 다른 탭으로 바꿈
-    if (r.error) { rec = null; body.innerHTML = headHtml() + `<div class="empty"><b>${t("cant")}</b>${esc(r.error)}<button class="btn line" id="td-retry" style="margin-top:12px">${t("retry")}</button></div>`; bindHead(); $("td-retry").onclick = () => renderToday(); return; }
+    if (r.error) { rec = null; body.innerHTML = headHtml() + `<div class="empty"><b>${t("cant")}</b>${esc(r.error)}<button class="btn line" id="td-retry" style="margin-top:12px">${t("retry")}</button><button class="btn line" data-settings style="margin-top:8px">${t("needKey")[2]}</button></div>`; bindHead(); $("td-retry").onclick = () => renderToday(); return; }
     rec = r; persistRec();
   }
   drawRec();
@@ -747,7 +756,7 @@ function headHtml() {
   const wx = weather
     ? `<div class="wx"><span class="t">${weather.am}°<small>→</small>${weather.pm}°</span><span class="l">${t("am")} <b>${weather.am}°</b> · ${t("pm")} <b>${weather.pm}°</b><br>${WX_TXT(weather.code)} · ${t("rain")} ${weather.rain}%</span></div>`
     : `<div class="wx"><span class="t">—</span><span class="l">${t("noWx")}</span></div>`;
-  return `<div class="top"><div class="date">${date}</div><div class="lang">${["ko", "en"].map((l) => `<button data-l="${l}" class="${lang === l ? "on" : ""}">${l.toUpperCase()}</button>`).join("")}</div></div>
+  return `<div class="top"><div class="date">${date}</div><div class="head-tools"><button class="icon-btn gear" data-settings aria-label="${t("set").title}">${icon("i-gear")}</button><div class="lang">${["ko", "en"].map((l) => `<button data-l="${l}" class="${lang === l ? "on" : ""}">${l.toUpperCase()}</button>`).join("")}</div></div></div>
     <div class="segc full" id="td-tpo">${["work", "out", "special"].map((k) => `<button data-tpo="${k}" class="${tpo === k ? "on" : ""}">${t("tpo")[k]}</button>`).join("")}</div>
     ${tpo === "special" ? `<div class="occ">${OCCS.map((o) => `<button data-occ="${o}" class="${occ === o ? "on" : ""}">${t("occ")[o]}</button>`).join("")}</div>` : ""}
     ${wx}`;
@@ -980,23 +989,73 @@ Return JSON {"score":number,"confidence":"High"|"Medium"|"Low","analysis":[4 Kor
 };
 
 // ─────────────────────────────────────────── 설정
-$("open-settings").onclick = openSettings;
+const DEFAULT_MODEL = "gemini-3.8-flash";
+const API = "https://generativelanguage.googleapis.com";
+// 이 키로 쓸 수 있는 모델 목록 (글을 만드는 Gemini만)
+async function fetchModels(key) {
+  const r = await fetch(`${API}/v1beta/models?pageSize=200`, { headers: { "x-goog-api-key": key } });
+  if (!r.ok) throw new Error(friendlyAiError(r.status, await r.text().catch(() => "")));
+  const data = await r.json();
+  return (data.models || [])
+    .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+    .map((m) => m.name.replace("models/", ""))
+    .filter((n) => n.startsWith("gemini") && !/embedding|image|tts|live|audio|robotics|computer-use/.test(n))
+    .sort().reverse();
+}
+// 가장 새로운 정식 Flash (gemini-X.Y-flash)
+function newestFlash(models) {
+  const stable = models.map((n) => ({ n, m: n.match(/^gemini-(\d+)(?:\.(\d+))?-flash$/) })).filter((x) => x.m)
+    .sort((a, b) => (+b.m[1] - +a.m[1]) || ((+b.m[2] || 0) - (+a.m[2] || 0)));
+  return stable[0]?.n || models.find((n) => /flash/.test(n)) || models[0] || DEFAULT_MODEL;
+}
+function friendlyAiError(status, msg) {
+  const S = t("aiErr");
+  if ((status === 400 && /API key/i.test(msg)) || status === 401 || status === 403) return S.key;
+  if (status === 404) return S.model;
+  if (status === 429) return S.busy;
+  if (status >= 500) return S.down;
+  return `Gemini ${status}: ${String(msg).replace(/\s+/g, " ").slice(0, 140)}`;
+}
 function openSettings() {
-  const s = settings.get(); const h = settings.home;
-  openModal(`<h2>설정</h2>
-    <label class="field">Gemini API 키 <span class="muted">(이 기기에만 저장)</span><input type="password" id="st-key" value="${esc(settings.key)}" autocomplete="off"></label>
-    <label class="field">모델<input type="text" id="st-model" value="${esc(settings.model)}"></label>
-    <label class="field">날씨 위치 이름<input type="text" id="st-name" value="${esc(h.name)}"></label>
-    <div class="modal-row"><label class="field" style="flex:1;margin:0">위도<input type="text" id="st-lat" inputmode="decimal" value="${h.lat}"></label><label class="field" style="flex:1;margin:0">경도<input type="text" id="st-lon" inputmode="decimal" value="${h.lon}"></label></div>
-    <button class="btn ghost" id="st-geo">현재 위치로</button>
-    <div class="modal-row"><button class="btn txt" id="st-export">JSON 내보내기</button><button class="btn txt" id="st-logout">로그아웃</button></div>
-    <button class="btn pri big" id="st-save">저장</button>
-    <p class="muted small">${esc(me?.email || "")} · v0.3</p>`);
-  $("st-geo").onclick = () => navigator.geolocation?.getCurrentPosition((p) => { $("st-lat").value = p.coords.latitude.toFixed(4); $("st-lon").value = p.coords.longitude.toFixed(4); }, () => toast("위치를 가져오지 못했어요"));
+  const h = settings.home; const S = t("set");
+  openModal(`<h2>${S.title}</h2>
+    <label class="field">${S.key} <span class="muted">${S.keyNote}</span>
+      <span class="field-row"><input type="password" id="st-key" value="${esc(settings.key)}" autocomplete="off" autocapitalize="off" spellcheck="false"><button type="button" class="btn line mini-btn" id="st-show">${S.show}</button></span></label>
+    <label class="field">${S.model}
+      <span class="field-row"><select id="st-model"><option value="${esc(settings.model)}">${esc(settings.model)}</option></select><button type="button" class="btn line mini-btn" id="st-models" aria-label="${S.reload}"><svg class="i s"><use href="#i-refresh"/></svg></button></span></label>
+    <p class="muted small" id="st-model-msg">${S.modelNote}</p>
+    <label class="field">${S.place}<input type="text" id="st-name" value="${esc(h.name)}"></label>
+    <div class="modal-row"><label class="field" style="flex:1;margin:0">${S.lat}<input type="text" id="st-lat" inputmode="decimal" value="${h.lat}"></label><label class="field" style="flex:1;margin:0">${S.lon}<input type="text" id="st-lon" inputmode="decimal" value="${h.lon}"></label></div>
+    <button class="btn ghost" id="st-geo">${S.geo}</button>
+    <button class="btn pri big" id="st-save">${S.save}</button>
+    <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.5</p>`);
+  const sel = $("st-model"), msg = $("st-model-msg");
+  let loadedFor = null;
+  const loadModels = async () => {
+    const key = $("st-key").value.trim();
+    if (!key) { msg.textContent = S.needKeyFirst; return; }
+    msg.textContent = S.loading; $("st-models").disabled = true;
+    try {
+      const models = await fetchModels(key); loadedFor = key;
+      const saved = settings.get().model;
+      const cur = settings.get().modelPicked && models.includes(saved) ? saved : newestFlash(models);
+      sel.innerHTML = models.map((m) => `<option value="${esc(m)}" ${m === cur ? "selected" : ""}>${esc(m)}</option>`).join("");
+      msg.textContent = (saved && !models.includes(saved) ? S.gone(saved) + " " : "") + S.loaded(models.length);
+    } catch (e) { msg.textContent = e.message; }
+    $("st-models").disabled = false;
+  };
+  $("st-models").onclick = loadModels;
+  $("st-key").addEventListener("change", loadModels);
+  $("st-show").onclick = () => { const k = $("st-key"); const on = k.type === "password"; k.type = on ? "text" : "password"; $("st-show").textContent = on ? S.hide : S.show; };
+  sel.onchange = () => { sel.dataset.picked = "1"; };
+  if (settings.key) loadModels();
+  $("st-geo").onclick = () => navigator.geolocation?.getCurrentPosition((p) => { $("st-lat").value = p.coords.latitude.toFixed(4); $("st-lon").value = p.coords.longitude.toFixed(4); }, () => toast(S.geoFail));
   $("st-save").onclick = () => {
     settings.key = $("st-key").value.trim();
-    settings.set({ model: $("st-model").value.trim() || "gemini-2.5-flash", home: { name: $("st-name").value.trim() || "빈", lat: Number($("st-lat").value) || HOME.lat, lon: Number($("st-lon").value) || HOME.lon }, wx: null });
-    weather = null; closeModal(); toast("저장됨");
+    settings.set({ model: sel.value || DEFAULT_MODEL, modelPicked: !!sel.dataset.picked || !!settings.get().modelPicked, home: { name: $("st-name").value.trim() || HOME.name, lat: Number($("st-lat").value) || HOME.lat, lon: Number($("st-lon").value) || HOME.lon }, wx: null });
+    weather = null; rec = null; closeModal(); toast(t("saved"));
+    if (!$("tab-today").hidden) renderToday();
   };
   $("st-logout").onclick = () => sb.auth.signOut();
   $("st-export").onclick = async () => {
@@ -1005,6 +1064,7 @@ function openSettings() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `stylist-${todayStr()}.json`; a.click();
   };
 }
+document.addEventListener("click", (e) => { if (e.target.closest("[data-settings]")) openSettings(); });
 
 // ─────────────────────────────────────────── 시작
 boot();

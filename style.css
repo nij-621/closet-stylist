@@ -339,6 +339,18 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .list button img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: none; }
 .list button.on { color: var(--camel); }
 
+/* 설정 */
+.icon-btn.gear { margin-right: 0; width: 40px; height: 40px; }
+.head-tools .icon-btn:last-child { margin-right: -10px; }
+.field { font-weight: 500; margin-top: 12px; }
+.field-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.field-row input, .field-row select { margin-top: 0 !important; flex: 1; min-width: 0; }
+.field select { display: block; width: 100%; height: 46px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper); font-size: 16px; }
+.field input { background: var(--paper); height: 46px; padding-top: 0; padding-bottom: 0; }
+.field-row .btn.mini-btn { width: auto; flex: none; height: 46px; padding: 0 14px; font-size: 14px; border-radius: var(--r-md); }
+.field-row input, .field-row select { width: auto; display: block; }
+#st-model-msg { margin-top: 6px; line-height: 1.5; }
+
 /* 토스트(실행 취소) · 탭바 */
 #toast { left: 14px; right: 14px; transform: none; max-width: 532px; margin: 0 auto; border-radius: 10px; padding: 12px 14px; font-size: 13.5px; font-weight: 500; display: flex; align-items: center; gap: 10px; text-align: left; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
 #toast button { margin-left: auto; color: var(--camel); font-weight: 600; white-space: nowrap; height: 32px; }
@@ -348,3 +360,5 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 @media (prefers-reduced-motion: reduce) {
   button, .gauge .bar i, .slot .track { transition: none !important; }
 }
+#modal > .btn, #modal > .modal-row { flex: none; }
+#modal > .btn.pri.big { margin-top: 14px; }

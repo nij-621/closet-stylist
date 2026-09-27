@@ -68,7 +68,7 @@
   <main id="tab-closet" class="tab" hidden>
     <header class="ph-head">
       <div class="row"><div class="h1"><span id="cl-title">옷장</span> <small id="cl-count">0</small></div>
-        <div class="head-tools"><div class="lang"><button data-l="ko" class="on">KO</button><button data-l="en">EN</button></div><button class="icon-btn" id="cl-search-btn" aria-label="검색"><svg class="i"><use href="#i-search"/></svg></button></div></div>
+        <div class="head-tools"><button class="icon-btn gear" data-settings aria-label="설정"><svg class="i"><use href="#i-gear"/></svg></button><div class="lang"><button data-l="ko" class="on">KO</button><button data-l="en">EN</button></div><button class="icon-btn" id="cl-search-btn" aria-label="검색"><svg class="i"><use href="#i-search"/></svg></button></div></div>
       <input id="cl-search" type="search" placeholder="이름·색·브랜드" autocomplete="off" hidden>
       <div class="segc scroll" id="cl-cat"></div>
       <div class="chips sub" id="cl-sub" hidden></div>
@@ -100,7 +100,7 @@
 
   <!-- 판정 -->
   <main id="tab-judge" class="tab" hidden>
-    <header class="ph-head"><div class="row"><div class="h1">구매</div><button class="icon-btn" id="open-settings" aria-label="설정"><svg class="i"><use href="#i-gear"/></svg></button></div></header>
+    <header class="ph-head"><div class="row"><div class="h1">구매</div><button class="icon-btn" data-settings aria-label="설정"><svg class="i"><use href="#i-gear"/></svg></button></div></header>
     <div class="judge-body">
       <textarea id="jd-input" rows="4" placeholder="치수·설명을 붙여넣기 (예: 어깨 38, 가슴 46, 총장 58, 울 80%)"></textarea>
       <label class="drop small" id="drop-judge"><input type="file" id="file-judge" accept="image/*" hidden><svg class="i s"><use href="#i-cam"/></svg><b>상품 사진 (선택)</b><span id="jd-file-name"></span></label>

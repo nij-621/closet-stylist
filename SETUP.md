@@ -17,7 +17,7 @@
 
 ## 4. Gemini 키
 - 앱 → 판정 탭 → 톱니(설정) → API 키 붙여넣기. **이 기기 localStorage에만 저장**, 리포·서버에 없음
-- MeetMemo·Recap과 같은 키 사용 가능. 기본 모델 `gemini-2.5-flash`, 설정에서 변경 가능
+- MeetMemo·Recap과 같은 키 사용 가능. 기본 모델 `gemini-3.8-flash`, 설정에서 변경 가능
 
 ## 5. 로컬 테스트
 ```
