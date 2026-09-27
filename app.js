@@ -31,6 +31,25 @@ const T = {
   kind: { ko: { safe: "안전", vary: "변주", dare: "도전", manual: "직접" }, en: { safe: "Safe", vary: "Variation", dare: "New", manual: "Custom" } },
   slot: { ko: { outer: "아우터", top: "상의", bottom: "하의", shoes: "신발", bag: "가방", acc_earring: "귀걸이", acc_neck: "목걸이·스카프", acc_wrist: "팔찌·반지", acc_socks: "양말", acc_gloves: "장갑" }, en: { outer: "Outer", top: "Top", bottom: "Bottom", shoes: "Shoes", bag: "Bag", acc_earring: "Earrings", acc_neck: "Necklace · scarf", acc_wrist: "Bracelet · ring", acc_socks: "Socks", acc_gloves: "Gloves" } },
   noOuter: { ko: "아우터 없음", en: "No outer" }, add: { ko: "추가", en: "Add" }, none: { ko: "없음", en: "None" }, takeOff: { ko: "빼기", en: "Take off" },
+  buyTitle: { ko: "내게 맞는 한 벌일까", en: "Will this suit me?" },
+  buy: {
+    ko: { photo: ["상품 사진", "여러 장 가능"], page: ["상세 페이지 캡처", "치수표·혼용률을 읽어 칸에 채워요"], count: (n) => `${n}장 선택 · 다시 고르기`, reading: "치수표를 읽는 중…", noChart: "캡처에서 치수표를 찾지 못했어요. 치수를 직접 넣어 주세요.",
+      size: "사이즈", measTitle: "치수 · cm", known: "(아는 것만)", autoRead: "치수표에서 읽음 · 고칠 수 있어요",
+      meas: { shoulder: "어깨", chest: "가슴 단면", length: "총장", sleeve: "소매", waist: "허리 단면", hip: "힙 단면", thigh: "허벅지 단면", rise: "밑위", size: "사이즈", heel: "굽", width: "가로", height: "세로" },
+      paste: "소재·설명 붙여넣기 (예: 울 80% · 원턱 · 스탠드 칼라)", color: "얼굴에 받는 색인지도 보기", judge: "판정", judging: "판정하는 중…", need: "사진, 치수, 설명 중 하나는 필요해요",
+      grades: ["강력 추천", "추천", "조건부", "약함", "비추천"], conf: { high: "신뢰도 높음", medium: "신뢰도 보통", low: "신뢰도 낮음" },
+      basis: { chart: (n) => `치수표 ${n}항목`, user: (n) => `직접 넣은 치수 ${n}항목`, photo: "사진" }, src: { chart: "치수표", photo: "사진", text: "설명" },
+      closet: "옷장 판정", partners: "짝이 되는 옷", noPartner: "없음", similar: "비슷한 옷", none: "없음", savedFit: (n) => `저장 코디 ${n}개 중 끼울 수 있는 곳`, reset: "새로 판정하기",
+      empty: ["사진 또는 치수로 시작", "나에게 맞는 이유 네 가지와, 내 옷장과 얼마나 맞물리는지 보여 줘요."], foot: "90+ 강력 추천 · 80+ 추천 · 70+ 조건부 · 60+ 약함 · 60 미만 비추천" },
+    en: { photo: ["Product photos", "Several are fine"], page: ["Detail page capture", "Reads the size chart into the fields"], count: (n) => `${n} selected · pick again`, reading: "Reading the size chart…", noChart: "No size chart found in the capture. Please type the measurements.",
+      size: "Size", measTitle: "Measurements · cm", known: "(only what you know)", autoRead: "Read from the size chart · editable",
+      meas: { shoulder: "Shoulder", chest: "Chest ½", length: "Length", sleeve: "Sleeve", waist: "Waist ½", hip: "Hip ½", thigh: "Thigh ½", rise: "Rise", size: "Size", heel: "Heel", width: "Width", height: "Height" },
+      paste: "Paste material or description (e.g. wool 80% · one tuck · stand collar)", color: "Also check the color near my face", judge: "Evaluate", judging: "Evaluating…", need: "Add a photo, a measurement or a description",
+      grades: ["Strong buy", "Buy", "Conditional", "Weak", "Skip"], conf: { high: "High confidence", medium: "Medium confidence", low: "Low confidence" },
+      basis: { chart: (n) => `${n} chart values`, user: (n) => `${n} typed values`, photo: "photo" }, src: { chart: "Chart", photo: "Photo", text: "Text" },
+      closet: "Closet check", partners: "Pairs with", noPartner: "None", similar: "Similar items", none: "None", savedFit: (n) => `Fits into your ${n} saved outfits`, reset: "Start a new check",
+      empty: ["Start with a photo or measurements", "Four reasons it suits you, plus how it meshes with your closet."], foot: "90+ Strong buy · 80+ Buy · 70+ Conditional · 60+ Weak · under 60 Skip" },
+  },
   legsTitle: { ko: "다리", en: "Legs" }, legsSwap: { ko: "스타킹이나 다른 양말로 바꾸기", en: "Swap for stockings or other socks" },
   legs: {
     ko: { bare: ["맨살", "", "맨살", "bare legs"], nude: ["스타킹", "살색 · 비침", "살색 비치는 스타킹", "sheer nude stockings"], black_sheer: ["스타킹", "검정 · 비침", "검정 비치는 스타킹", "sheer black stockings"], black_opaque: ["스타킹", "검정 · 안 비침", "검정 안 비치는 스타킹", "opaque black tights"], black_fleece: ["스타킹", "검정 · 기모", "검정 기모 스타킹", "fleece-lined black tights"] },
@@ -119,6 +138,7 @@ function setLang(l) {
   lang = l === "en" ? "en" : "ko"; localStorage.setItem("stylist.lang", lang); applyLang();
   if (!$("tab-closet").hidden) renderCloset();
   if (!$("tab-today").hidden) renderToday();
+  if (!$("tab-judge").hidden) renderBuy();
 }
 
 // ─────────────────────────────────────────── 고정 프로필 (본인 전용)
@@ -191,6 +211,7 @@ function showTab(name) {
   window.scrollTo(0, 0);
   if (name === "today") renderToday();
   if (name === "closet") renderCloset();
+  if (name === "judge") renderBuy();
 }
 document.querySelectorAll("#tabbar button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 
@@ -1028,37 +1049,135 @@ function banMain() {
 
 if (MOCK) window.__app = { fixAccessories, validOutfit, candidates, slotOf, swapTo, get items() { return items; }, get rec() { return rec; }, set weather(w) { weather = w; }, set tpo(v) { tpo = v; }, set occ(v) { occ = v; } };
 
-// ─────────────────────────────────────────── 구매 판정 (기존 앱 이식 + 옷장 블록)
-let judgeFile = null;
-$("file-judge").onchange = (e) => { judgeFile = e.target.files[0] || null; $("jd-file-name").textContent = judgeFile ? judgeFile.name : ""; $("drop-judge").classList.toggle("has", !!judgeFile); };
-$("jd-go").onclick = async () => {
-  const input = $("jd-input").value.trim();
-  if (!input && !judgeFile) return toast("설명이나 사진 중 하나는 필요해요");
-  $("jd-go").disabled = true; $("jd-result").innerHTML = `<p class="muted small">판정 중…</p>`;
-  try {
-    const color = $("jd-color").checked;
-    const parts = [{ text: `${PROFILE}\nYou are a conservative structural stylist. Evaluate the garment's compatibility for this client. Color mode ${color ? "ENABLED" : "DISABLED"}.
-Scoring 90+ Strong Buy, 80-89 Buy, 70-79 Conditional, 60-69 Weak, <60 Do Not Buy. Anchor to measurements first, then visuals.
-Return JSON {"score":number,"confidence":"High"|"Medium"|"Low","analysis":[4 Korean strings],"colorImpact":Korean string or null,"category":"top"|"bottom"|"outer"|"shoes"|"dress"|"bag"|"acc","subtype":Korean,"color_name":Korean}` }, { text: input || "No text. Judge from the image." }];
-    if (judgeFile) parts.push(await blobToInline(await resize(judgeFile, 1200, 0.85)));
-    const r = await gemini(parts);
-    const verdict = r.score >= 90 ? "Strong Buy" : r.score >= 80 ? "Buy" : r.score >= 70 ? "Conditional" : r.score >= 60 ? "Weak" : "Do Not Buy";
-    // 옷장 블록: 비슷한 옷 + 조합 가능 수 (로컬 계산)
-    const sim = items.filter((i) => i.status !== "stored" && i.category === r.category && (i.subtype === r.subtype || i.color_name === r.color_name));
-    const partnerSlots = { top: ["bottom", "shoes"], bottom: ["top", "shoes"], outer: ["top", "bottom"], shoes: ["top", "bottom"], dress: ["shoes", "outer"] }[r.category] || [];
-    const partners = partnerSlots.map((s) => items.filter((i) => i.status === "active" && slotOf(i) === s).length);
-    const combos = partners.length ? partners.reduce((a, b) => a * Math.max(b, 0), 1) : 0;
-    $("jd-result").innerHTML = `
-      <div class="jd-card"><h3>체형 판정</h3><div class="big">${r.score}<small>${verdict} · ${r.confidence}</small></div><ul>${(r.analysis || []).map((a) => `<li>${esc(a)}</li>`).join("")}</ul>${r.colorImpact ? `<p class="muted small">${esc(r.colorImpact)}</p>` : ""}</div>
-      <div class="jd-card"><h3>옷장 판정</h3>
-        <p><b>조합 가능</b> ${combos ? `${combos.toLocaleString()}가지` : "상대 옷 없음"} <span class="muted small">(${partnerSlots.map((s, i) => `${CAT_KO[s]} ${partners[i]}`).join(" × ")})</span></p>
-        <p><b>비슷한 옷</b> ${sim.length ? `${sim.length}벌 이미 있음` : "없음"}</p>
-        ${sim.length ? `<div class="sim">${sim.slice(0, 6).map((i) => `<span>${esc(i.name)}</span>`).join("")}</div>` : ""}
-      </div>`;
-    await sb.from("judgements").insert({ owner: me.id, input, score: r.score, confidence: r.confidence, analysis: r.analysis, color_impact: r.colorImpact, color_mode: color, similar_count: sim.length, combo_count: combos });
-  } catch (e) { $("jd-result").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
-  $("jd-go").disabled = false;
+// ─────────────────────────────────────────── 구매 (v5: 상품 사진 + 상세 페이지 캡처 → 치수 칸 → 판정 + 옷장 판정)
+// 숫자 칸이 최종 근거. 캡처에서 읽은 값은 카멜색으로 채우고, 사용자가 고치면 보통 색으로 돌아간다.
+const MEAS = {
+  top: ["shoulder", "chest", "length", "sleeve"], outer: ["shoulder", "chest", "length", "sleeve"],
+  bottom: ["waist", "hip", "thigh", "rise", "length"], dress: ["shoulder", "chest", "waist", "length"],
+  shoes: ["size", "heel"], bag: ["width", "height"], acc: ["length"],
 };
+const MEAS_EN = { shoulder: "shoulder width", chest: "chest half-width (flat)", length: "total length", sleeve: "sleeve length", waist: "waist half-width (flat)", hip: "hip half-width (flat)", thigh: "thigh half-width (flat)", rise: "rise", size: "shoe size (mm)", heel: "heel height", width: "width", height: "height" };
+const buy = { cat: "top", photos: [], shots: [], vals: {}, auto: {}, sizes: [], size: null, desc: "", color: false, reading: false, judging: false, result: null, error: "" };
+const BT = (k) => t("buy")[k];
+const gradeOf = (n) => BT("grades")[n >= 90 ? 0 : n >= 80 ? 1 : n >= 70 ? 2 : n >= 60 ? 3 : 4];
+async function askAI(kind, payload, parts) {
+  if (MOCK) { const m = await import("./mock.js"); return m.ai(kind, payload); }
+  return gemini(parts);
+}
+const thumbsOf = (list) => list.map((f) => `<img src="${esc(f.url)}" alt="">`).join("");
+const keepFiles = (files, max) => [...files].slice(0, max).map((f) => ({ file: f, url: URL.createObjectURL(f) }));
+
+function renderBuy() {
+  const b = buy; const M = BT("meas"); const r = b.result;
+  $("buy-body").innerHTML = `
+    <div class="segc scroll" id="by-cat">${Object.keys(MEAS).map((k) => `<button data-bc="${k}" class="${b.cat === k ? "on" : ""}">${t("cats")[k]}</button>`).join("")}</div>
+    <div class="by-two">
+      <label class="by-drop ${b.photos.length ? "has" : ""}"><input type="file" id="by-photos" accept="image/*" multiple hidden>${b.photos.length ? `<span class="th">${thumbsOf(b.photos)}</span>` : icon("i-cam", "i s")}<b>${BT("photo")[0]}</b><span>${b.photos.length ? BT("count")(b.photos.length) : BT("photo")[1]}</span></label>
+      <label class="by-drop ${b.shots.length ? "has" : ""}"><input type="file" id="by-shots" accept="image/*" multiple hidden>${b.shots.length ? `<span class="th">${thumbsOf(b.shots)}</span>` : icon("i-tag", "i s")}<b>${BT("page")[0]}</b><span>${b.reading ? BT("reading") : b.shots.length ? BT("count")(b.shots.length) : BT("page")[1]}</span></label>
+    </div>
+    ${b.error ? `<p class="by-note warn">${esc(b.error)}</p>` : ""}
+    ${b.sizes.length > 1 ? `<span class="by-lbl">${BT("size")}</span><div class="occ" id="by-sizes">${b.sizes.map((s, i) => `<button data-bs="${i}" class="${b.size === i ? "on" : ""}">${esc(s.size)}</button>`).join("")}</div>` : ""}
+    <span class="by-lbl">${BT("measTitle")} <span class="faint">${BT("known")}</span>${Object.keys(b.auto).length ? `<span class="camel">${BT("autoRead")}</span>` : ""}</span>
+    <div class="by-nums">${MEAS[b.cat].map((k) => `<label>${M[k]}<input type="number" inputmode="decimal" step="0.5" data-bm="${k}" class="${b.auto[k] ? "auto" : ""}" value="${esc(b.vals[k] ?? "")}"></label>`).join("")}</div>
+    <textarea id="by-desc" rows="2" placeholder="${BT("paste")}">${esc(b.desc)}</textarea>
+    <label class="switch"><input type="checkbox" id="by-color" ${b.color ? "checked" : ""}> ${BT("color")}</label>
+    <button class="btn pri big" id="by-go" ${b.judging || b.reading ? "disabled" : ""}>${b.judging ? BT("judging") : BT("judge")}</button>
+    ${r ? `
+      <div class="by-verdict"><span class="w">${gradeOf(r.score)}</span><span class="n">${r.score}</span><span class="c">${BT("conf")[r.confidence] || ""}${r.basis ? " · " + esc(r.basis) : ""}</span></div>
+      <div class="by-ev">${r.evidence.map((e) => `<div><span>${BT("src")[e.src] || BT("src").photo}</span><p>${esc(LX(e.text))}</p></div>`).join("")}</div>
+      ${LX(r.color) ? `<p class="by-note camel">${esc(LX(r.color))}</p>` : ""}
+      <h3 class="by-h">${BT("closet")}</h3>
+      <div class="by-kv"><span>${BT("partners")}</span><b>${r.partners.length ? r.partners.map(([s, n]) => `${t("slot")[s]} <i>${n}</i>`).join(" · ") : BT("noPartner")}</b></div>
+      <div class="by-kv"><span>${BT("similar")}</span><b>${r.similar.length ? `<i>${r.similar.length}</i> · ${esc(r.similar.slice(0, 2).map(nameOf).join(", "))}${r.similar.length > 2 ? " …" : ""}` : BT("none")}</b></div>
+      ${r.similar.length ? `<div class="by-sim">${r.similar.slice(0, 6).map((i) => `<button data-sim="${i.id}" aria-label="${esc(nameOf(i))}"><img src="${esc(thumbOf(i))}" alt=""></button>`).join("")}</div>` : ""}
+      ${r.savedAll ? `<div class="by-kv last"><span>${BT("savedFit")(r.savedAll)}</span><b><i class="big">${r.savedFit}</i></b></div>` : `<div class="by-kv last"></div>`}
+      <button class="btn txt" id="by-reset">${BT("reset")}</button>`
+    : `<div class="empty"><b>${BT("empty")[0]}</b>${BT("empty")[1]}</div>`}
+    <p class="tiny faint by-foot">${BT("foot")}</p>`;
+  const body = $("buy-body");
+  body.querySelectorAll("[data-bc]").forEach((x) => (x.onclick = () => { if (b.cat === x.dataset.bc) return; b.cat = x.dataset.bc; b.result = null; if (b.size != null) fillSize(b.size); renderBuy(); }));
+  body.querySelectorAll("[data-bm]").forEach((x) => (x.oninput = () => { b.vals[x.dataset.bm] = x.value; delete b.auto[x.dataset.bm]; x.classList.remove("auto"); }));
+  body.querySelectorAll("[data-bs]").forEach((x) => (x.onclick = () => { fillSize(Number(x.dataset.bs)); renderBuy(); }));
+  body.querySelectorAll("[data-sim]").forEach((x) => (x.onclick = () => openReview(byId(x.dataset.sim))));
+  $("by-desc").oninput = (e) => { b.desc = e.target.value; };
+  $("by-color").onchange = (e) => { b.color = e.target.checked; };
+  $("by-photos").onchange = (e) => { if (!e.target.files.length) return; b.photos = keepFiles(e.target.files, 4); b.result = null; renderBuy(); };
+  $("by-shots").onchange = (e) => { if (!e.target.files.length) return; b.shots = keepFiles(e.target.files, 3); b.result = null; readChart(); };
+  $("by-go").onclick = judgeBuy;
+  const rs = $("by-reset"); if (rs) rs.onclick = () => { Object.assign(buy, { photos: [], shots: [], vals: {}, auto: {}, sizes: [], size: null, desc: "", result: null, error: "" }); renderBuy(); window.scrollTo(0, 0); };
+}
+// 고른 사이즈의 치수를 칸에 채움. 사용자가 직접 넣은 값은 덮어쓰지 않음.
+function fillSize(i) {
+  const b = buy; const s = b.sizes[i]; if (!s) return;
+  b.size = i;
+  Object.keys(b.auto).forEach((k) => { delete b.vals[k]; }); b.auto = {};
+  MEAS[b.cat].forEach((k) => { const v = Number(s.values?.[k]); if (v > 0 && (b.vals[k] == null || b.vals[k] === "")) { b.vals[k] = String(v); b.auto[k] = true; } });
+}
+async function readChart() {
+  const b = buy; b.reading = true; b.error = ""; renderBuy();
+  try {
+    const parts = [{ text: `Read this shop detail-page capture (size chart, fabric composition). Do not guess: use null for anything not printed.
+Units: centimetres (shoe size in mm). "단면" values are flat half-widths — keep them as printed. If the chart gives a full circumference for chest, waist, hip or thigh, halve it.
+Return JSON: {"category":"top"|"bottom"|"outer"|"dress"|"shoes"|"bag"|"acc"|null,
+"sizes":[{"size":"label as printed (S, M, 55, 36 …)","values":{${Object.entries(MEAS_EN).map(([k, v]) => `"${k}": ${v}`).join(", ")}}}],
+"material":"composition as printed, e.g. 울 80% 나일론 20%" or null,
+"notes":"short Korean list of design facts stated on the page (tuck, collar, lining, stretch)" or null}` }];
+    for (const s of b.shots) parts.push(await blobToInline(await resize(s.file, 1600, 0.85)));
+    const r = await askAI("chart", { cat: b.cat }, parts);
+    b.sizes = (r.sizes || []).filter((s) => s && s.values && Object.values(s.values).some((v) => Number(v) > 0)).map((s) => ({ size: String(s.size || "—"), values: s.values }));
+    if (r.category && MEAS[r.category]) b.cat = r.category;
+    const extra = [r.material, r.notes].filter(Boolean).join(" · ");
+    if (extra && !b.desc.includes(extra)) b.desc = [b.desc, extra].filter(Boolean).join("\n");
+    if (b.sizes.length) fillSize(0); else b.error = BT("noChart");
+  } catch (e) { b.error = e.message; }
+  b.reading = false; renderBuy();
+}
+async function judgeBuy() {
+  const b = buy; const M = BT("meas");
+  const vals = MEAS[b.cat].filter((k) => Number(b.vals[k]) > 0).map((k) => [k, Number(b.vals[k]), b.auto[k] ? "chart" : "user"]);
+  if (!vals.length && !b.photos.length && !b.desc.trim()) return toast(BT("need"));
+  if (!MOCK && !PROFILE) { await loadProfile(); if (!PROFILE) return toast(t("noProfile")); }
+  b.judging = true; b.error = ""; b.result = null; renderBuy();
+  try {
+    const parts = [{ text: `${PROFILE}
+${STYLE_RULES}
+
+You are a conservative stylist judging ONE item she is thinking of buying. Category: ${b.cat}${b.size != null && b.sizes[b.size] ? `, size ${b.sizes[b.size].size}` : ""}.
+Measurements in cm (the final evidence — anchor to these first, then the photos): ${vals.length ? vals.map(([k, v, s]) => `${MEAS_EN[k]} ${v} (${s === "chart" ? "from size chart" : "typed by her"})`).join("; ") : "none given"}.
+Description: ${b.desc.trim() || "none"}.
+Personal color: ${b.color ? "EVALUATE it and include color_ko/color_en" : "do NOT evaluate; color_ko and color_en must be null"}.
+Score 0-100: 90+ strong buy, 80+ buy, 70+ conditional, 60+ weak, under 60 do not buy. With few measurements, lower the confidence, not the score.
+Return JSON: {"score":0-100,"confidence":"high"|"medium"|"low",
+"evidence":[exactly 4 of {"src":"chart"|"photo"|"text","ko":"one short plain Korean sentence; when src is chart, name the number","en":"same in English"}],
+"color_ko":string|null,"color_en":string|null,
+"subtype":"Korean type (블라우스, 슬랙스 …)","color_name":"Korean color name","color_tone":"warm"|"cool"|"neutral",
+"formality_work":boolean,"formality_out":boolean,"season":["spring"|"summer"|"fall"|"winter"]}
+In evidence sentences you MAY state measurements, but keep the wording plain.` }];
+    for (const p of b.photos) parts.push(await blobToInline(await resize(p.file, 1200, 0.85)));
+    const r = await askAI("judge", { cat: b.cat, vals, color: b.color }, parts);
+    const score = Math.max(0, Math.min(100, Math.round(Number(r.score) || 0)));
+    // 옷장 판정: 짝이 되는 옷(격식도·계절 일치) · 비슷한 옷 · 저장 코디 중 끼울 수 있는 곳. 곱셈 조합 수는 쓰지 않음.
+    const slot = b.cat === "dress" ? "top" : b.cat;
+    const seasons = Array.isArray(r.season) ? r.season : [];
+    const fits = (i) => i.status === "active" && ((r.formality_work && i.formality_work) || (r.formality_out && i.formality_out) || (!r.formality_work && !r.formality_out))
+      && (!seasons.length || !(i.season || []).length || i.season.some((s) => seasons.includes(s)));
+    const pSlots = { top: ["bottom", "shoes", "outer"], bottom: ["top", "shoes", "outer"], outer: ["top", "bottom", "shoes"], shoes: ["top", "bottom"], dress: ["shoes", "outer"], bag: ["top", "shoes"], acc: [] }[b.cat];
+    const partners = pSlots.map((s) => [s, items.filter((i) => slotOf(i) === s && i.category !== "acc" && fits(i)).length]);
+    const similar = items.filter((i) => i.status !== "stored" && i.category === b.cat && ((r.subtype && i.subtype === r.subtype) || (r.color_name && i.color_name === r.color_name)) && (b.cat !== "acc" || (r.subtype && i.subtype === r.subtype)));
+    const { data: saved } = await sb.from("outfits").select("items").eq("saved", true);
+    const live = (saved || []).filter((o) => (o.items || []).some(byId));
+    const savedFit = live.filter((o) => { const its = o.items.map(byId).filter(Boolean); const same = its.find((i) => (b.cat === "dress" ? i.category === "dress" : slotOf(i) === slot && i.category !== "dress")); return b.cat === "dress" ? !!same : !!same && its.filter((i) => i !== same).every(fits); }).length;
+    const nChart = vals.filter((v) => v[2] === "chart").length, nUser = vals.length - nChart;
+    const basis = [nChart && BT("basis").chart(nChart), nUser && BT("basis").user(nUser), b.photos.length && BT("basis").photo].filter(Boolean).join(" + ");
+    b.result = { score, confidence: ["high", "medium", "low"].includes(r.confidence) ? r.confidence : "medium", basis,
+      evidence: (r.evidence || []).slice(0, 4).map((e) => ({ src: e.src, text: { ko: e.ko || "", en: e.en || "" } })).filter((e) => e.text.ko),
+      color: b.color ? { ko: r.color_ko || "", en: r.color_en || "" } : null, partners, similar, savedFit, savedAll: live.length };
+    const input = [t("cats")[b.cat], vals.map(([k, v]) => `${M[k]} ${v}`).join(", "), b.desc.trim()].filter(Boolean).join(" · ");
+    sb.from("judgements").insert({ owner: me.id, input, score, confidence: b.result.confidence, analysis: b.result.evidence.map((e) => e.text.ko), color_impact: b.result.color?.ko || null, color_mode: b.color, similar_count: similar.length, combo_count: savedFit }).then(() => {});
+  } catch (e) { b.error = e.message; }
+  b.judging = false; renderBuy();
+  if (b.result) $("by-go").scrollIntoView({ block: "start", behavior: "smooth" });
+}
 
 // ─────────────────────────────────────────── 설정
 const DEFAULT_MODEL = "gemini-3.8-flash";
@@ -1102,7 +1221,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.10</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.11</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {

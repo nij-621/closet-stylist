@@ -427,3 +427,48 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 /* 세로로 쌓이는 화면에서 주 버튼이 납작해지던 것(.btn.pri의 flex: 1이 높이를 줄임) */
 .add-body > .btn, .judge-body > .btn { flex: none; height: 52px; border-radius: 12px; }
+
+/* 구매 (v5) */
+.judge-body { display: block; padding-top: 12px; }
+.by-two { display: flex; gap: 8px; margin-top: 12px; }
+.by-drop { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; min-height: 104px; justify-content: center; border: 1px dashed var(--ink3); border-radius: 12px; text-align: center; color: var(--ink2); cursor: pointer; }
+.by-drop b { color: var(--ink); font-size: 14px; font-weight: 600; margin-top: 4px; }
+.by-drop span { font-size: 12px; line-height: 1.35; }
+.by-drop.has { border-style: solid; border-color: var(--camel); }
+.by-drop .th { display: flex; gap: 3px; justify-content: center; }
+.by-drop .th img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; }
+.by-lbl { display: block; margin-top: 16px; font-size: 12.5px; font-weight: 600; color: var(--ink2); }
+.by-lbl .faint { font-weight: 500; color: var(--ink3); } .by-lbl .camel { color: var(--camel); margin-left: 8px; }
+.by-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
+.by-nums label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; font-weight: 500; color: var(--ink2); min-width: 0; }
+.by-nums input { width: 100%; height: 44px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; padding: 0 2px; font-size: 22px; font-family: var(--n); font-weight: 500; color: var(--ink); }
+.by-nums input:focus { outline: 0; border-color: var(--ink); }
+.by-nums input.auto { color: var(--camel); }
+#by-desc { width: 100%; margin-top: 14px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; font-size: 15px; resize: none; color: var(--ink); }
+#by-desc:focus { outline: 0; border-color: var(--ink); }
+.judge-body .switch { margin-top: 10px; font-weight: 500; }
+.judge-body .switch input { accent-color: var(--camel); }
+.judge-body > .btn.pri.big { margin-top: 10px; }
+.by-note { margin-top: 10px; font-size: 13px; line-height: 1.5; } .by-note.warn { color: var(--warn); } .by-note.camel { color: var(--camel); }
+.by-verdict { margin-top: 22px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.by-verdict .w { font-size: 26px; font-weight: 600; letter-spacing: -.01em; }
+.by-verdict .n { font-family: var(--n); font-size: 30px; font-weight: 500; color: var(--ink2); }
+.by-verdict .c { font-size: 12px; color: var(--ink3); font-weight: 500; }
+.by-ev { margin-top: 10px; }
+.by-ev div { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.5; }
+.by-ev div span { flex: none; width: 46px; font-size: 12px; font-weight: 600; color: var(--ink3); padding-top: 2px; }
+.by-ev div p { flex: 1; min-width: 0; word-break: keep-all; }
+.by-h { margin-top: 24px; font-size: 13px; font-weight: 600; color: var(--ink2); padding-bottom: 6px; }
+.by-kv { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.by-kv.last { border-bottom: 1px solid var(--line); }
+.by-kv span { color: var(--ink2); flex: none; } .by-kv b { font-weight: 500; text-align: right; min-width: 0; }
+.by-kv i { font-style: normal; font-family: var(--n); font-size: 15px; } .by-kv i.big { font-size: 20px; }
+.by-sim { display: flex; gap: 6px; padding: 0 0 10px; overflow-x: auto; }
+.by-sim button { flex: none; width: 56px; height: 56px; border-radius: 8px; overflow: hidden; background: var(--well); }
+.by-sim img { width: 100%; height: 100%; object-fit: contain; }
+#by-reset { display: block; margin: 8px auto 0; height: 44px; color: var(--ink2); font-size: 13px; }
+.by-foot { margin-top: 16px; text-align: center; }
+
+.by-kv.last:empty { padding: 0; }
+.by-ev div p { font-weight: 400; }
+.by-foot { font-size: 11px; }

@@ -100,14 +100,8 @@
 
   <!-- 판정 -->
   <main id="tab-judge" class="tab" hidden>
-    <header class="ph-head"><div class="row"><div class="h1">구매</div><button class="icon-btn" data-settings aria-label="설정"><svg class="i"><use href="#i-gear"/></svg></button></div></header>
-    <div class="judge-body">
-      <textarea id="jd-input" rows="4" placeholder="치수·설명을 붙여넣기 (예: 어깨 38, 가슴 46, 총장 58, 울 80%)"></textarea>
-      <label class="drop small" id="drop-judge"><input type="file" id="file-judge" accept="image/*" hidden><svg class="i s"><use href="#i-cam"/></svg><b>상품 사진 (선택)</b><span id="jd-file-name"></span></label>
-      <label class="switch"><input type="checkbox" id="jd-color"> 퍼스널컬러도 평가</label>
-      <button id="jd-go" class="btn pri big">판정</button>
-      <div id="jd-result"></div>
-    </div>
+    <header class="ph-head"><div class="row"><div class="h1" data-t="buyTitle">내게 맞는 한 벌일까</div><button class="icon-btn" data-settings aria-label="설정"><svg class="i"><use href="#i-gear"/></svg></button></div></header>
+    <div class="judge-body" id="buy-body"></div>
   </main>
 
   <nav id="tabbar">
