@@ -17,8 +17,8 @@ const T = {
   tab_today: { ko: "오늘", en: "Today" }, tab_closet: { ko: "옷장", en: "Closet" }, tab_add: { ko: "등록", en: "Add" }, tab_buy: { ko: "구매", en: "Buy" },
   // 설정 · Gemini 오류
   set: {
-    ko: { title: "설정", key: "Gemini API 키", keyNote: "(이 기기에만 저장)", show: "보기", hide: "숨기기", model: "Gemini 모델", reload: "모델 목록 다시 불러오기", modelNote: "키를 넣으면 쓸 수 있는 모델이 목록으로 나와요.", needKeyFirst: "키를 먼저 넣어 주세요.", loading: "모델 목록을 불러오는 중…", loaded: (n) => `쓸 수 있는 모델 ${n}개예요. Flash는 빠르고 저렴하고, Pro는 느리지만 더 꼼꼼해요.`, gone: (m) => `${m}은(는) 이제 쓸 수 없어요.`, place: "날씨 위치 이름", lat: "위도", lon: "경도", geo: "현재 위치로", geoFail: "위치를 가져오지 못했어요", save: "저장", exp: "내 기록 내려받기", logout: "로그아웃" },
-    en: { title: "Settings", key: "Gemini API key", keyNote: "(stored on this device only)", show: "Show", hide: "Hide", model: "Gemini model", reload: "Reload model list", modelNote: "Enter your key to see the models you can use.", needKeyFirst: "Enter the key first.", loading: "Loading models…", loaded: (n) => `${n} models available. Flash is fast and cheap; Pro is slower but more careful.`, gone: (m) => `${m} is no longer available.`, place: "Weather location", lat: "Latitude", lon: "Longitude", geo: "Use current location", geoFail: "Couldn't get your location", save: "Save", exp: "Download my records", logout: "Log out" },
+    ko: { title: "설정", lang: "언어", key: "Gemini API 키", keyNote: "(이 기기에만 저장)", show: "보기", hide: "숨기기", model: "Gemini 모델", reload: "모델 목록 다시 불러오기", modelNote: "키를 넣으면 쓸 수 있는 모델이 목록으로 나와요.", needKeyFirst: "키를 먼저 넣어 주세요.", loading: "모델 목록을 불러오는 중…", loaded: (n) => `쓸 수 있는 모델 ${n}개예요. Flash는 빠르고 저렴하고, Pro는 느리지만 더 꼼꼼해요.`, gone: (m) => `${m}은(는) 이제 쓸 수 없어요.`, place: "날씨 위치 이름", lat: "위도", lon: "경도", geo: "현재 위치로", geoFail: "위치를 가져오지 못했어요", save: "저장", exp: "내 기록 내려받기", logout: "로그아웃" },
+    en: { title: "Settings", lang: "Language", key: "Gemini API key", keyNote: "(stored on this device only)", show: "Show", hide: "Hide", model: "Gemini model", reload: "Reload model list", modelNote: "Enter your key to see the models you can use.", needKeyFirst: "Enter the key first.", loading: "Loading models…", loaded: (n) => `${n} models available. Flash is fast and cheap; Pro is slower but more careful.`, gone: (m) => `${m} is no longer available.`, place: "Weather location", lat: "Latitude", lon: "Longitude", geo: "Use current location", geoFail: "Couldn't get your location", save: "Save", exp: "Download my records", logout: "Log out" },
   },
   aiErr: {
     ko: { key: "Gemini 키가 맞지 않아요. 설정에서 키를 확인해 주세요.", model: "고른 Gemini 모델을 쓸 수 없어요. 설정에서 다른 모델을 골라 주세요.", busy: "요청이 많아 잠시 막혔어요. 1분 뒤에 다시 시도해 주세요.", down: "Gemini 쪽에 문제가 있어요. 잠시 뒤 다시 시도해 주세요." },
@@ -31,9 +31,10 @@ const T = {
   kind: { ko: { safe: "안전", vary: "변주", dare: "도전", manual: "직접" }, en: { safe: "Safe", vary: "Variation", dare: "New", manual: "Custom" } },
   slot: { ko: { outer: "아우터", top: "상의", bottom: "하의", shoes: "신발", bag: "가방", acc_earring: "귀걸이", acc_neck: "목걸이·스카프", acc_wrist: "팔찌·반지", acc_socks: "양말", acc_gloves: "장갑" }, en: { outer: "Outer", top: "Top", bottom: "Bottom", shoes: "Shoes", bag: "Bag", acc_earring: "Earrings", acc_neck: "Necklace · scarf", acc_wrist: "Bracelet · ring", acc_socks: "Socks", acc_gloves: "Gloves" } },
   noOuter: { ko: "아우터 없음", en: "No outer" }, add: { ko: "추가", en: "Add" }, none: { ko: "없음", en: "None" }, takeOff: { ko: "빼기", en: "Take off" },
+  change: { ko: "다른 옷으로 바꾸기", en: "Swap for another" }, pinMark: { ko: "고정", en: "pinned" },
   days: { ko: ["오늘", "내일"], en: ["Today", "Tomorrow"] }, edited: { ko: "직접 바꿈", en: "edited" },
   tip: { ko: "요령", en: "Tip" }, ratio: { ko: "비율 추정", en: "est. proportion" },
-  wear: { ko: "입음", en: "Wore this" }, worn: { ko: "입음 기록됨", en: "Logged" }, ban: { ko: "다시 추천 안 함", en: "Don't suggest again" }, redo: { ko: "다른 조합", en: "Other options" },
+  wear: { ko: "이렇게 입을게요", en: "I'll wear this" }, worn: { ko: "입기로 했어요", en: "Logged" }, ban: { ko: "이 조합은 그만 보기", en: "Don't suggest again" }, redo: { ko: "전부 다시 골라 줘", en: "Pick again" },
   alts: { ko: "다른 안", en: "Alternatives" }, diff: { ko: (s) => `${s} 다름`, en: (s) => `${s} differs` }, diffN: { ko: (n) => `${n}곳 다름`, en: (n) => `${n} changes` }, diffAcc: { ko: "소품 다름", en: "accessories differ" },
   dareEmpty: { ko: ["오늘은 비워둘게요", "안 해 본 조합 중에 맞는 게 없어요"], en: ["Left empty today", "No new pairing works today"] },
   pinHint: { ko: "옆으로 밀면 교체 · 길게 누르면 고정·제외", en: "Swipe to swap · long-press to pin / pause" },
@@ -776,15 +777,15 @@ async function renderToday() {
 function persistRec() { localStorage.setItem(recKey(), JSON.stringify(rec)); }
 function headHtml() {
   const d = targetDate();
-  const date = lang === "en" ? `<b>${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}</b> · ${esc(settings.home.name)}` : `<b>${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}</b> · ${esc(settings.home.name)}`;
+  const date = lang === "en" ? d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : `<b>${d.getMonth() + 1}</b>월 <b>${d.getDate()}</b>일 ${"일월화수목금토"[d.getDay()]}요일`;
   const wx = weather
-    ? `<div class="wx"><span class="t">${weather.am}°<small>→</small>${weather.pm}°</span><span class="l">${t("am")} <b>${weather.am}°</b> · ${t("pm")} <b>${weather.pm}°</b><br>${WX_TXT(weather.code)} · ${t("rain")} ${weather.rain}%</span></div>`
-    : `<div class="wx"><span class="t">—</span><span class="l">${t("noWx")}</span></div>`;
+    ? `<span class="t" title="${t("am")} ${weather.am}° · ${t("pm")} ${weather.pm}°">${weather.am}°<small>→</small>${weather.pm}°</span> · ${WX_TXT(weather.code)} · ${t("rain")} <b>${weather.rain}%</b>`
+    : t("noWx");
   const days = `<div class="dayseg">${[0, 1].map((k) => `<button data-day="${k}" class="${dayOff === k ? "on" : ""}">${t("days")[k]}</button>`).join("")}</div>`;
-  return `<div class="top"><div class="datebox">${days}<div class="date">${date}</div></div><div class="head-tools"><button class="icon-btn gear" data-settings aria-label="${t("set").title}">${icon("i-gear")}</button><div class="lang">${["ko", "en"].map((l) => `<button data-l="${l}" class="${lang === l ? "on" : ""}">${l.toUpperCase()}</button>`).join("")}</div></div></div>
+  return `<div class="top">${days}<button class="icon-btn gear" data-settings aria-label="${t("set").title}">${icon("i-gear")}</button></div>
+    <div class="when"><div class="date">${date}</div><div class="wx">${wx}</div></div>
     <div class="segc full" id="td-tpo">${["work", "out", "special"].map((k) => `<button data-tpo="${k}" class="${tpo === k ? "on" : ""}">${t("tpo")[k]}</button>`).join("")}</div>
-    ${tpo === "special" ? `<div class="occ">${OCCS.map((o) => `<button data-occ="${o}" class="${occ === o ? "on" : ""}">${t("occ")[o]}</button>`).join("")}</div>` : ""}
-    ${wx}`;
+    ${tpo === "special" ? `<div class="occ">${OCCS.map((o) => `<button data-occ="${o}" class="${occ === o ? "on" : ""}">${t("occ")[o]}</button>`).join("")}</div>` : ""}`;
 }
 function bindHead() {
   const b = $("td-body");
@@ -798,9 +799,10 @@ const icon = (id, cls = "i") => `<svg class="${cls}"><use href="#${id}"/></svg>`
 
 function slotCell(o, s, span) {
   const it = itemIn(o, s);
-  if (!it) return `<div class="slot empty-slot ${span ? "span" : ""}" data-slot="${s}"><span>${t("noOuter")}${weather ? ` · ${t("morning")} ${weather.am}°` : ""}</span><button data-add="${s}">${icon("i-plus", "i xs b")}${t("add")}</button></div>`;
-  const nx = pool(s, it.id).find((x) => !o.items.includes(x.id)); const pinned = rec.pin === it.id;
-  return `<div class="slot photo ${span ? "span" : ""}" data-slot="${s}" data-id="${it.id}"><div class="track"><img src="${esc(thumbOf(it))}" alt=""></div>${nx && thumbOf(nx) ? `<div class="peek"><img src="${esc(thumbOf(nx))}" alt=""></div>` : ""}<div class="cap"><b>${it.reviewed_at ? "" : "<i></i>"}${esc(nameOf(it))}</b></div><button class="pinbtn ${pinned ? "on" : ""}" data-pin="${it.id}" aria-label="${pinned ? t("unpinBtn") : t("pinBtn")}">${icon("i-pin", "i s")}</button></div>`;
+  if (!it) return `<div class="cell ${span ? "span" : ""}"><div class="slot empty-slot" data-slot="${s}"><span>${t("noOuter")}${weather ? ` · ${t("morning")} ${weather.am}°` : ""}</span><button data-add="${s}">${icon("i-plus", "i xs b")}${t("add")}</button></div><span class="k">${t("slot")[s]}</span></div>`;
+  const pinned = rec.pin === it.id;
+  // 배경을 지운 사진은 여백을 두고, 원래 사진은 칸을 꽉 채움
+  return `<div class="cell ${span ? "span" : ""}"><div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div><span class="k ${pinned ? "pin" : ""}">${t("slot")[s]}${pinned ? " · " + t("pinMark") : ""}</span><span class="nm">${esc(nameOf(it))}</span></div>`;
 }
 function cells(o) {
   const dress = itemIn(o, "top")?.category === "dress"; const list = [];
@@ -812,8 +814,9 @@ function extrasHtml(o) {
   const shown = EXTRA.filter((s) => itemIn(o, s) || s === "bag" || (s !== "acc_gloves" && pool(s).length));
   return `<div class="extras">${shown.map((s) => {
     const it = itemIn(o, s); const ic = icon(s === "bag" ? "i-bag" : "i-gem", "i s");
-    if (!it) return `<button class="x none" data-xslot="${s}"><span class="ph">${ic}</span><span class="tx"><b>${t("slot")[s]}</b><span>${t("none")}</span></span></button>`;
-    return `<button class="x" data-xslot="${s}" data-id="${it.id}"><span class="ph">${thumbOf(it) ? `<img src="${esc(thumbOf(it))}" alt="">` : ic}</span><span class="tx"><b>${esc(nameOf(it))}</b><span>${t("slot")[s]}${rec.pin === it.id ? " · " + t("pinned") : ""}</span></span></button>`;
+    const kind = it ? t("accTypes")[it.acc_type] || t("slot")[s] : t("slot")[s].split("·")[0].trim();
+    if (!it) return `<button class="x none" data-xslot="${s}" aria-label="${t("slot")[s]} ${t("add")}"><span class="ph">${icon("i-plus", "i s")}</span><span class="k">${kind}</span></button>`;
+    return `<button class="x" data-xslot="${s}" data-id="${it.id}" aria-label="${esc(nameOf(it))}"><span class="ph">${thumbOf(it) ? `<img src="${esc(thumbOf(it))}" alt="">` : ic}</span><span class="k ${rec.pin === it.id ? "pin" : ""}">${kind}</span></button>`;
   }).join("")}</div>`;
 }
 function drawRec() {
@@ -827,53 +830,56 @@ function drawRec() {
   body.innerHTML = `${headHtml()}
     <div class="stage"><div class="stack" id="stack">${cells(main)}</div></div>
     ${extrasHtml(main)}
-    ${rec.pin || main.tag ? `<div class="meta"><span>${K[main.kind] || K.safe}${main.edited ? " · " + t("edited") : ""}${main.tag ? ` · ${esc(LX(main.tag))}` : ""}</span>${rec.pin && byId(rec.pin) ? `<span class="pin-on">${t("pinned")} · ${esc(nameOf(byId(rec.pin)))}</span><button data-unpin>${t("unpin")}</button>` : ""}</div>` : ""}
+    <div class="acts"><button class="btn pri big" id="td-wear" ${wornKey ? "disabled" : ""}>${icon("i-check", "i s b")}${wornKey ? t("worn") : t("wear")}</button></div>
+    ${main.edited && main.tag ? `<div class="meta"><span>${t("edited")} · ${esc(LX(main.tag))}</span></div>` : ""}
+    <div class="why">${esc(LX(main.reason))}</div>
+    ${LX(main.tip) ? `<div class="why tipline">${esc(LX(main.tip))}</div>` : ""}
     <div class="alts"><h4>${t("alts")}</h4>${alts.map(([o, i]) => {
       if (!o) return `<div class="alt blank"><div class="th"><span class="ph"></span></div><div class="tx"><b>${K.dare} · ${t("dareEmpty")[0]}</b><span>${t("dareEmpty")[1]}</span></div></div>`;
       const d = coreDiff(o, main); const its = d.map((s) => itemIn(o, s)).filter(Boolean).slice(0, 3);
       const what = d.length >= 3 ? t("diffN")(d.length) : d.length ? t("diff")(d.map((s) => t("slot")[s]).join("·")) : t("diffAcc");
       return `<button class="alt" data-alt="${i}"><div class="th">${(its.length ? its : [itemIn(o, "top")]).map((x) => `<img src="${esc(thumbOf(x))}" alt="">`).join("")}</div><div class="tx"><b>${K[o.kind] || K.safe}${o.edited ? " · " + t("edited") : ""} · ${what}</b><span>${its.slice(0, 2).map((x) => esc(nameOf(x))).join(" · ")}${its.length > 2 ? " …" : ""}</span></div>${icon("i-chev", "i s go")}</button>`;
     }).join("")}</div>
-    <div class="acts"><button class="btn pri" id="td-wear" ${wornKey ? "disabled" : ""}>${icon("i-check", "i s b")}${wornKey ? t("worn") : t("wear")}</button></div>
-    ${LX(main.tip) ? `<div class="why tipline"><b>${t("tip")}</b><span>${esc(LX(main.tip))}</span></div>` : ""}
-    <div class="why">${esc(LX(main.reason))}</div>
-    <div class="scoreline"><span class="n">${main.score ?? "—"}</span><span>${K[main.kind] || K.safe} · ${t("ratio")} ${main.top ?? 50}:${100 - (main.top ?? 50)}</span></div>
-    <p class="tiny faint" style="margin-top:6px">${t("pinHint")}</p>
-    <div class="tr"><button class="btn txt" id="td-ban">${icon("i-ban", "i xs")} ${t("ban")}</button><button class="btn txt" id="td-redo">${t("redo")}</button></div>
+    <div class="tr"><button class="btn txt" id="td-redo">${t("redo")}</button><button class="btn txt" id="td-ban">${t("ban")}</button></div>
     ${lackShoes ? `<div class="gap"><b>${t("gap")[0]}</b><br>${t("gap")[1]}<br><button id="td-buy">${t("gap")[2]} ${icon("i-chev", "i xs")}</button></div>` : ""}`;
   bindHead();
   body.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => { rec.main = Number(b.dataset.alt); persistRec(); drawRec(); window.scrollTo(0, 0); }));
   body.querySelectorAll(".slot.photo[data-slot]").forEach(bindGesture);
-  body.querySelectorAll("[data-pin]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); togglePin(b.dataset.pin); }));
+  body.querySelectorAll(".slot.photo[data-slot]").forEach((el) => (el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openItemSheet(el.dataset.slot, byId(el.dataset.id)); } }));
   body.querySelectorAll("[data-add]").forEach((b) => (b.onclick = () => swapTo(b.dataset.add, pool(b.dataset.add)[0])));
-  body.querySelectorAll("[data-xslot]").forEach((b) => (b.onclick = () => pickExtra(b.dataset.xslot)));
-  const un = body.querySelector("[data-unpin]"); if (un) un.onclick = () => togglePin(rec.pin);
+  body.querySelectorAll("[data-xslot]").forEach((b) => (b.onclick = () => (b.dataset.id ? openItemSheet(b.dataset.xslot, byId(b.dataset.id)) : pickExtra(b.dataset.xslot))));
   $("td-wear").onclick = wearMain; $("td-ban").onclick = banMain; $("td-redo").onclick = redo;
   const tb = $("td-buy"); if (tb) tb.onclick = () => showTab("judge");
 }
 
-// 옆으로 밀기 = 그 옷만 교체 (1:1 추적, 놓는 속도로 확정) · 길게 누르기 = 고정·제외 메뉴
+// 옆으로 밀기 = 그 옷만 교체 (1:1 추적, 놓는 속도로 확정) · 누르기 = 크게 보기(바꾸기·고정·제외는 그 안에)
 function bindGesture(el) {
   const s = el.dataset.slot; const track = el.querySelector(".track");
-  let x0 = 0, dx = 0, t0 = 0, on = false, held = false, timer;
-  el.addEventListener("pointerdown", (e) => { if (e.target.closest("button")) return; x0 = e.clientX; dx = 0; t0 = performance.now(); on = true; held = false; el.setPointerCapture(e.pointerId); track.style.transition = "none";
-    timer = setTimeout(() => { if (Math.abs(dx) < 8) { held = true; track.style.transform = ""; openSlotMenu(el); } }, 450); });
-  el.addEventListener("pointermove", (e) => { if (!on) return; dx = e.clientX - x0; if (Math.abs(dx) > 8) clearTimeout(timer); track.style.transform = `translateX(${dx * 0.9}px)`; });
-  const end = () => { clearTimeout(timer); if (!on || held) { on = false; return; } on = false;
-    const vel = dx / Math.max(1, performance.now() - t0); const commit = Math.abs(dx) > 70 || Math.abs(vel) > 0.45;
+  let x0 = 0, y0 = 0, dx = 0, dy = 0, t0 = 0, on = false;
+  el.addEventListener("pointerdown", (e) => { x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = performance.now(); on = true; el.setPointerCapture(e.pointerId); track.style.transition = "none"; });
+  el.addEventListener("pointermove", (e) => { if (!on) return; dx = e.clientX - x0; dy = e.clientY - y0; if (Math.abs(dx) > 8) track.style.transform = `translateX(${dx * 0.9}px)`; });
+  const end = (e) => { if (!on) return; on = false;
+    const ms = performance.now() - t0; const vel = dx / Math.max(1, ms); const commit = Math.abs(dx) > 70 || Math.abs(vel) > 0.45;
     track.style.transition = "transform 220ms var(--ease-out)";
-    if (!commit) { track.style.transform = ""; return; }
+    if (e.type === "pointerup" && Math.abs(dx) < 8 && Math.abs(dy) < 8 && ms < 600) { track.style.transform = ""; return openItemSheet(s, byId(el.dataset.id)); }
+    if (e.type !== "pointerup" || !commit) { track.style.transform = ""; return; }
     track.style.transform = `translateX(${dx < 0 ? -110 : 110}%)`; setTimeout(() => swap(s, dx < 0 ? 1 : -1), 150); };
   el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
 }
-function openSlotMenu(el) {
-  document.querySelectorAll(".slot .menu").forEach((m) => m.remove());
-  const id = el.dataset.id; const it = byId(id); const m = document.createElement("div"); m.className = "menu";
-  m.innerHTML = `<button data-m="pin" class="${rec.pin === id ? "on" : ""}">${icon("i-pin", "i xs")}${rec.pin === id ? t("unpinBtn") : t("pinBtn")}</button><button data-m="pause">${icon("i-ban", "i xs")}${t("pause")}</button>`;
-  el.appendChild(m);
-  m.querySelector('[data-m="pin"]').onclick = (e) => { e.stopPropagation(); togglePin(id); };
-  m.querySelector('[data-m="pause"]').onclick = (e) => { e.stopPropagation(); pauseFromToday(it); };
-  setTimeout(() => document.addEventListener("pointerdown", (e) => { if (!m.contains(e.target)) m.remove(); }, { once: true }), 0);
+// 사진을 누르면: 원래 사진 크게 + 입는 법 + 바꾸기 · 고정 · 제외
+function openItemSheet(s, it) {
+  if (!it) return;
+  const note = lang === "en" ? (it.styling_note_en || it.styling_note_ko) : (it.styling_note_ko || it.notes);
+  const src = urlCache.get(it.thumb_path) || thumbOf(it); const pinned = rec.pin === it.id; const extra = !CORE.includes(s);
+  openModal(`<div class="sheet-ph"><img src="${esc(src)}" alt=""></div>
+    <p class="sheet-k">${t("slot")[s]}${it.brand ? " · " + esc(it.brand) : ""}</p>
+    <h2 class="sheet-nm">${esc(nameOf(it))}</h2>
+    ${note ? `<p class="sheet-note"><b>${t("howTo")}</b>${esc(note)}</p>` : ""}
+    <button class="btn pri big" data-sh="swap">${t("change")}</button>
+    <div class="modal-row sheet-row"><button class="btn line" data-sh="pin">${icon("i-pin", "i xs")}${pinned ? t("unpinBtn") : t("pinBtn")}</button>${extra ? `<button class="btn line" data-sh="off">${t("takeOff")}</button>` : `<button class="btn line" data-sh="pause">${icon("i-ban", "i xs")}${t("pause")}</button>`}</div>`, "sheet");
+  const on = (k, fn) => { const b = $("modal").querySelector(`[data-sh="${k}"]`); if (b) b.onclick = () => { closeModal(); fn(); }; };
+  on("swap", () => pickExtra(s)); on("pin", () => togglePin(it.id)); on("pause", () => pauseFromToday(it));
+  on("off", () => { const main = rec.outfits[rec.main]; main.items = main.items.filter((id) => id !== it.id); main.edited = true; persistRec(); drawRec(); });
 }
 const swapIdx = {};
 function swap(s, dir) {
@@ -909,10 +915,11 @@ async function swapTo(s, next) {
 const nameOfEn = (i) => i.name_en || i.name;
 function pickExtra(s) {
   const main = rec.outfits[rec.main]; const cur = itemIn(main, s); const pl = pool(s);
-  openModal(`<h2>${t("slot")[s]}</h2><div class="list">${cur ? `<button data-id="">${icon("i-x", "i s")}<span>${t("takeOff")}</span></button>` : ""}${pl.map((i) => `<button data-id="${i.id}" class="${cur?.id === i.id ? "on" : ""}"><img src="${esc(thumbOf(i))}" alt="" loading="lazy"><span>${esc(nameOf(i))}</span>${cur?.id === i.id ? icon("i-check", "i s b") : ""}</button>`).join("") || `<p class="muted small" style="padding:16px 0">${t("noSwap")}</p>`}</div>`);
+  openModal(`<h2>${t("slot")[s]}</h2><div class="list">${cur && !CORE.includes(s) ? `<button data-id="">${icon("i-x", "i s")}<span>${t("takeOff")}</span></button>` : ""}${pl.map((i) => `<button data-id="${i.id}" class="${cur?.id === i.id ? "on" : ""}"><img src="${esc(thumbOf(i))}" alt="" loading="lazy"><span>${esc(nameOf(i))}</span>${cur?.id === i.id ? icon("i-check", "i s b") : ""}</button>`).join("") || `<p class="muted small" style="padding:16px 0">${t("noSwap")}</p>`}</div>`);
   $("modal").querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => {
     closeModal();
     if (!b.dataset.id) { main.items = main.items.filter((id) => id !== cur.id); main.edited = true; persistRec(); return drawRec(); }
+    if (cur && cur.id === rec.pin) return toast(t("swapPin"));
     if (b.dataset.id !== cur?.id) swapTo(s, byId(b.dataset.id));
   }));
 }
@@ -1052,12 +1059,13 @@ function openSettings() {
     <label class="field">${S.model}
       <span class="field-row"><select id="st-model"><option value="${esc(settings.model)}">${esc(settings.model)}</option></select><button type="button" class="btn line mini-btn" id="st-models" aria-label="${S.reload}"><svg class="i s"><use href="#i-refresh"/></svg></button></span></label>
     <p class="muted small" id="st-model-msg">${S.modelNote}</p>
+    <div class="field">${S.lang}<div class="lang" id="st-lang">${["ko", "en"].map((l) => `<button type="button" data-l="${l}" class="${lang === l ? "on" : ""}">${l === "ko" ? "한국어" : "English"}</button>`).join("")}</div></div>
     <label class="field">${S.place}<input type="text" id="st-name" value="${esc(h.name)}"></label>
     <div class="modal-row"><label class="field" style="flex:1;margin:0">${S.lat}<input type="text" id="st-lat" inputmode="decimal" value="${h.lat}"></label><label class="field" style="flex:1;margin:0">${S.lon}<input type="text" id="st-lon" inputmode="decimal" value="${h.lon}"></label></div>
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.5</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.8</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
@@ -1073,6 +1081,7 @@ function openSettings() {
     } catch (e) { msg.textContent = e.message; }
     $("st-models").disabled = false;
   };
+  $("st-lang").querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => { if (b.dataset.l === lang) return; closeModal(); setLang(b.dataset.l); openSettings(); }));
   $("st-models").onclick = loadModels;
   $("st-key").addEventListener("change", loadModels);
   $("st-show").onclick = () => { const k = $("st-key"); const on = k.type === "password"; k.type = on ? "text" : "password"; $("st-show").textContent = on ? S.hide : S.show; };

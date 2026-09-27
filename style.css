@@ -366,3 +366,53 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 }
 #modal > .btn, #modal > .modal-row { flex: none; }
 #modal > .btn.pri.big { margin-top: 14px; }
+
+/* 오늘 — 정리판(2026-09-27): 사진 위에 아무것도 얹지 않음 · 이름은 사진 아래 · 입기 버튼은 옷 바로 아래 */
+.top { padding-top: 4px; }
+.top .icon-btn.gear { margin-right: -10px; width: 44px; height: 44px; }
+.when { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.when .date { font-size: 13px; font-weight: 500; color: var(--ink2); white-space: nowrap; }
+.when .date b { font-family: var(--n); font-size: 14px; font-weight: 500; color: var(--ink); }
+.when .wx { display: block; margin: 0; font-size: 12px; color: var(--ink2); text-align: right; min-width: 0; }
+.when .wx .t { font-family: var(--n); font-size: 20px; font-weight: 500; color: var(--ink); letter-spacing: -.01em; line-height: 1; }
+.when .wx .t small { font-size: 14px; color: var(--ink3); margin: 0 2px; font-weight: 400; }
+.when .wx b { font-family: var(--n); font-size: 13px; font-weight: 500; color: var(--ink); }
+.stage { margin-top: 14px; }
+.stack { gap: 12px 10px; }
+.cell { display: block; min-width: 0; }
+.cell.span { grid-column: 1 / -1; }
+.cell .slot.photo { aspect-ratio: 5 / 4; border-radius: 10px; cursor: pointer; }
+.cell.span .slot.photo, .cell.span .slot.empty-slot { aspect-ratio: 5 / 2; }
+.cell .slot.empty-slot { aspect-ratio: 5 / 4; border-radius: 10px; }
+.cell .slot img.cut { object-fit: contain; padding: 8px; }
+.cell .slot img.raw { object-fit: cover; }
+.cell .k { display: block; margin-top: 6px; font-size: 12px; color: var(--ink3); }
+.cell .k.pin, .extras .x .k.pin { color: var(--camel); font-weight: 600; }
+.cell .nm { display: block; font-size: 14px; font-weight: 500; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.extras { gap: 4px; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); overflow: visible; }
+.extras .x, .extras .x.none { flex: 1; width: auto; min-width: 0; min-height: 0; display: block; padding: 0; border: 0; border-radius: 0; text-align: center; }
+.extras .x .ph { width: 52px; height: 52px; border-radius: 50%; margin: 0 auto; }
+.extras .x.none .ph { background: transparent; border: 1px dashed var(--line); }
+.extras .x .k { display: block; margin-top: 4px; font-size: 12px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acts { margin-top: 14px; }
+.acts .btn.pri.big { width: 100%; height: 52px; border-radius: 12px; font-size: 16px; font-weight: 600; }
+.meta { margin-top: 12px; }
+.why { margin-top: 14px; }
+.why.tipline { display: block; margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--camel); }
+.alts { margin-top: 20px; }
+.alts h4 { font-size: 13px; font-weight: 500; color: var(--ink2); }
+.alt .th img { object-fit: contain; background: var(--well); }
+.tr { justify-content: space-between; gap: 8px; margin-top: 4px; }
+.tr .btn.txt { font-size: 13px; padding: 0; }
+/* 사진을 눌렀을 때 */
+#modal.sheet .sheet-ph { margin: 0 -18px; margin-top: -14px; background: var(--well); border-radius: 18px 18px 0 0; overflow: hidden; flex: none; }
+#modal.sheet .sheet-ph img { display: block; width: 100%; max-height: 50dvh; object-fit: contain; border-radius: 0; }
+#modal.sheet .modal-x { background: color-mix(in srgb, var(--paper) 80%, transparent); border-radius: 50%; z-index: 1; }
+.sheet-k { margin-top: 14px; font-size: 12px; color: var(--ink3); }
+#modal h2.sheet-nm { font-size: 18px; padding-right: 0; }
+.sheet-note { margin-top: 8px; font-size: 14px; line-height: 1.55; color: var(--ink2); }
+.sheet-note b { display: block; font-size: 12px; font-weight: 600; color: var(--camel); }
+.sheet-row { margin-top: 8px; gap: 8px; }
+.sheet-row .btn { flex: 1; height: 46px; font-size: 14px; gap: 5px; }
+#st-lang { display: flex; width: 100%; margin-top: 6px; border-radius: var(--r-md); }
+#st-lang button { flex: 1; height: 44px; font-family: inherit; font-size: 14px; font-weight: 500; }
