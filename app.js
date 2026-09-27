@@ -1374,7 +1374,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.13</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.14</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {

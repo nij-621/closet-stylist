@@ -1,5 +1,5 @@
 // Stylist SW — 앱 셸만 캐시. Supabase·Gemini·Open-Meteo 응답과 서명 URL 이미지는 캐시하지 않음.
-const CACHE = "stylist-v0.13";
+const CACHE = "stylist-v0.14";
 const SHELL = ["./", "./index.html", "./style.css", "./app.js", "./config.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
