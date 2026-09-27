@@ -1,0 +1,17 @@
+# 옷 사진·개인 데이터는 리포에 올리지 않는다
+*.jpg
+*.jpeg
+*.heic
+*.png
+!icon-180.png
+!icon-512.png
+*.json
+!manifest.webmanifest
+test-photos/
+.claude/
+mock.js
+# 개인 정보가 든 문서·SQL은 공개 저장소에 올리지 않는다
+private/
+PROFILE.md
+RULEBOOK.md
+CLAUDE.md

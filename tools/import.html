@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>옷장 올리기</title>
+<style>
+:root{--paper:#fbfaf7;--ink:#171512;--ink2:#6b655c;--ink3:#857d72;--line:#e6e1d8;--well:#f4f1eb;--camel:#a9743f;--espresso:#2a2420;--warn:#8f3b2b;--num:"Archivo Narrow","Arial Narrow",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+body{font:16px/1.55 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"Malgun Gothic",sans-serif;background:var(--paper);color:var(--ink);padding:28px 16px 80px;max-width:720px;margin:auto}
+h1{font-size:22px;font-weight:600;margin-bottom:4px}
+.lead{color:var(--ink2);font-size:14px;margin-bottom:24px}
+section{padding:20px 0;border-top:1px solid var(--line)}
+section[aria-disabled=true]{opacity:.45;pointer-events:none}
+h2{font-size:16px;font-weight:600;margin-bottom:10px;display:flex;gap:8px;align-items:baseline}
+h2 .n{font-family:var(--num);color:var(--ink3);font-weight:500}
+h2 .ok{color:var(--camel);font-size:13px;font-weight:500}
+label{display:block;font-size:13px;color:var(--ink2);margin:10px 0 4px}
+input[type=email],input[type=password]{width:100%;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;color:inherit}
+input:focus-visible,button:focus-visible{outline:2px solid var(--camel);outline-offset:2px}
+button{height:44px;padding:0 18px;border:0;border-radius:8px;background:var(--espresso);color:#fff;font:inherit;font-weight:500;cursor:pointer;transition:transform .12s ease-out}
+button:active{transform:scale(.97)}
+button.sub{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.pick{display:flex;gap:10px;align-items:center;margin-top:8px}
+.pick span{font-size:13.5px;color:var(--ink2)}
+.msg{font-size:13.5px;margin-top:10px;color:var(--ink2)}
+.msg.err{color:var(--warn)}
+.stat{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.stat div{background:var(--well);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font-family:var(--num);font-size:22px;font-weight:600}
+.stat span{font-size:12px;color:var(--ink2)}
+.bar{height:6px;background:var(--well);border-radius:3px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;width:0;background:var(--camel);transition:width .2s ease-out}
+#log{margin-top:12px;max-height:280px;overflow:auto;font-size:12.5px;color:var(--ink2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace}
+#log:empty{display:none}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink);margin-top:10px}
+.chk input{width:18px;height:18px;accent-color:var(--camel)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<h1>옷장 올리기</h1>
+<p class="lead">분류해 둔 옷 목록과 사진을 내 옷장에 올려요. 중간에 멈춰도 다시 누르면 이어서 올라가요.</p>
+
+<section id="s1">
+  <h2><span class="n">1</span> 로그인 <span class="ok" id="s1ok"></span></h2>
+  <form id="login">
+    <label for="em">이메일</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">비밀번호</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <div class="row"><button type="submit">로그인</button><button type="button" class="sub" id="out" hidden>로그아웃</button></div>
+  </form>
+  <p class="msg" id="m1"></p>
+</section>
+
+<section id="s2" aria-disabled="true">
+  <h2><span class="n">2</span> 파일 고르기 <span class="ok" id="s2ok"></span></h2>
+  <div class="pick"><button type="button" class="sub" id="bJson">옷 목록 파일</button><span id="tJson">옷 사진 폴더 안의 import.json</span></div>
+  <div class="pick"><button type="button" class="sub" id="bDir">사진 폴더</button><span id="tDir">옷 사진 폴더 전체</span></div>
+  <input id="fJson" type="file" accept=".json,application/json" hidden>
+  <input id="fDir" type="file" webkitdirectory multiple hidden>
+  <div class="stat" id="stat" hidden>
+    <div><b id="nItem">0</b><span>옷·소품</span></div>
+    <div><b id="nPhoto">0</b><span>사진</span></div>
+    <div><b id="nDone">0</b><span>이미 올라감</span></div>
+    <div><b id="nMiss">0</b><span>사진 없음</span></div>
+  </div>
+  <p class="msg" id="m2"></p>
+</section>
+
+<section id="s3" aria-disabled="true">
+  <h2><span class="n">3</span> 올리기 <span class="ok" id="s3ok"></span></h2>
+  <label class="chk"><input type="checkbox" id="few" checked> 먼저 3개만 올려서 확인하기</label>
+  <div class="row"><button type="button" id="go">올리기 시작</button><button type="button" class="sub" id="stop" disabled>멈추기</button></div>
+  <div class="bar"><i id="bar"></i></div>
+  <p class="msg" id="m3"></p>
+  <div id="log"></div>
+</section>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+import { SUPABASE_URL, SUPABASE_KEY } from "../config.js";
+
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = (id) => document.getElementById(id);
+const BUCKET = "wardrobe";
+let me = null, data = null, photos = new Map(), done = new Set(), running = false, halt = false;
+
+const say = (id, t, err) => { const e = $(id); e.textContent = t || ""; e.classList.toggle("err", !!err); };
+const log = (t) => { const l = $("log"); l.textContent += (l.textContent ? "\n" : "") + t; l.scrollTop = l.scrollHeight; };
+const gate = () => {
+  $("s2").setAttribute("aria-disabled", me ? "false" : "true");
+  const ready = me && data && photos.size;
+  $("s3").setAttribute("aria-disabled", ready ? "false" : "true");
+};
+
+// ---------- 1. 로그인 ----------
+async function setUser(u) {
+  me = u;
+  $("s1ok").textContent = u ? u.email : "";
+  $("out").hidden = !u;
+  $("em").disabled = $("pw").disabled = !!u;
+  document.querySelector("#login button[type=submit]").disabled = !!u;
+  if (u) {
+    const { error } = await sb.from("items").select("id").limit(1);
+    if (error) say("m1", "로그인은 됐지만 옷장을 읽을 수 없어요: " + error.message, true);
+    else { say("m1", "로그인됐어요."); await loadDone(); }
+  }
+  gate();
+}
+$("login").onsubmit = async (e) => {
+  e.preventDefault(); say("m1", "확인하는 중…");
+  const { data: r, error } = await sb.auth.signInWithPassword({ email: $("em").value.trim(), password: $("pw").value });
+  $("pw").value = "";
+  if (error) return say("m1", error.message === "Invalid login credentials" ? "이메일이나 비밀번호가 맞지 않아요." : error.message, true);
+  await setUser(r.user);
+};
+$("out").onclick = async () => { await sb.auth.signOut(); await setUser(null); say("m1", "로그아웃했어요."); };
+sb.auth.getUser().then(({ data: r }) => { if (r?.user) setUser(r.user); });
+
+// ---------- 2. 파일 ----------
+async function loadDone() {
+  done = new Set();
+  const { data: rows, error } = await sb.from("items").select("import_id").not("import_id", "is", null).limit(2000);
+  if (error) return say("m2", "올라간 목록을 읽지 못했어요: " + error.message, true);
+  rows.forEach((r) => done.add(r.import_id));
+  summary();
+}
+function need(it) { return [it.photo, it.label_photo, ...(it.extra_photos || [])].filter(Boolean); }
+function summary() {
+  if (!data) return;
+  const items = data.items, miss = photos.size ? items.filter((it) => !photos.has(it.photo.toLowerCase())) : [];
+  $("stat").hidden = false;
+  $("nItem").textContent = items.length;
+  $("nPhoto").textContent = photos.size;
+  $("nDone").textContent = items.filter((it) => done.has(it.id)).length;
+  $("nMiss").textContent = miss.length;
+  if (photos.size && miss.length) say("m2", "사진을 못 찾은 옷: " + miss.slice(0, 8).map((i) => i.id).join(", ") + (miss.length > 8 ? " …" : "") + " — 폴더를 다시 골라 주세요.", true);
+  else if (photos.size) { say("m2", "준비됐어요."); $("s2ok").textContent = "준비됨"; }
+  gate();
+}
+$("bJson").onclick = () => $("fJson").click();
+$("bDir").onclick = () => $("fDir").click();
+$("fJson").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (!Array.isArray(j.items) || !j.items.length || !j.items[0].id || !j.items[0].photo) throw new Error("옷 목록 형식이 아니에요.");
+    data = j; $("tJson").textContent = f.name + " · " + j.items.length + "개 · " + (j.version || "");
+    summary();
+  } catch (err) { data = null; say("m2", "파일을 읽지 못했어요: " + err.message, true); gate(); }
+};
+$("fDir").onchange = (e) => {
+  photos = new Map();
+  for (const f of e.target.files) if (/\.(jpe?g|png|webp)$/i.test(f.name)) photos.set(f.name.toLowerCase(), f);
+  $("tDir").textContent = "사진 " + photos.size + "장";
+  summary();
+};
+
+// ---------- 3. 사진 줄이기 + 올리기 ----------
+async function shrink(file, max, q) {
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height); bmp.close?.();
+  return await new Promise((ok, no) => c.toBlob((b) => b ? ok(b) : no(new Error("사진 변환 실패")), "image/jpeg", q));
+}
+async function put(path, blob) {
+  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: true });
+  if (error) throw new Error("사진 올리기 실패(" + path.split("/").pop() + "): " + error.message);
+  return path;
+}
+const ko = (v) => v == null ? null : (typeof v === "string" ? v : v.ko ?? null);
+const en = (v) => v == null || typeof v === "string" ? null : v.en ?? null;
+const arr = (v) => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []);
+const num = (v) => v == null || v === "" || isNaN(Number(v)) ? null : Number(v);
+function recommendOf(it) {
+  const r = String(it.recommend || "");
+  if (r.startsWith("never")) return "never";
+  if (r.startsWith("special")) return "special_only";
+  if (it.acc_type === "hair") return "on_request";
+  return "auto";
+}
+function rowOf(it, p) {
+  const design = arr(it.design_lines).filter((d) => d !== "none");
+  return {
+    import_id: it.id, name: ko(it.name) || it.id, name_en: en(it.name),
+    category: it.category, subtype: ko(it.subtype), subtype_en: en(it.subtype),
+    color_name: ko(it.color_name), color_name_en: en(it.color_name), color_hex: it.color_hex ?? null, color_tone: it.color_tone ?? null,
+    pattern: it.pattern ?? null, length: it.length ?? null, length_cm: num(it.length_cm), sleeve: it.sleeve ?? null,
+    silhouette: it.silhouette ?? null, neckline: it.neckline ?? null, layer_role: it.layer_role ?? null,
+    design_lines: design, tuck: it.tuck ?? null, skirt_type: it.skirt_type ?? null, collar_type: it.collar_type ?? null, coat_type: it.coat_type ?? null,
+    acc_type: it.acc_type ?? null, metal: it.metal ?? null, heel_cm: num(it.heel_cm),
+    material: ko(it.material), material_en: en(it.material), material_guess: ko(it.material_guess), material_guess_en: en(it.material_guess),
+    material_confidence: it.material_confidence ?? null,
+    label_text: it.label_text ?? null, brand: it.brand || null, size_label: it.size_label || null,
+    season: arr(it.season), warmth: num(it.warmth),
+    formality_work: !!it.formality_work, formality_out: it.formality_out !== false, status: it.status || "active",
+    styling_note_ko: ko(it.styling_note), styling_note_en: en(it.styling_note), notes: ko(it.styling_note),
+    fit_note: it.fit_note ?? null, condition_note: it.condition_note ?? null, same_as: it.same_as ?? null,
+    rain: !!it.rain, recommend: recommendOf(it),
+    uncertain: arr(it.uncertain), questions: arr(it.questions),
+    attr_src: it.attr_src || {},
+    extraction: { design_lines: design, tuck: it.tuck ?? null, skirt_type: it.skirt_type ?? null, collar_type: it.collar_type ?? null, coat_type: it.coat_type ?? null, source: "claude-import" },
+    extraction_version: data.version || "claude-import",
+    reviewed_at: arr(it.questions).length ? null : new Date().toISOString(),
+    photo_path: p.orig, thumb_path: p.thumb, label_path: p.label, extra_paths: p.extra,
+  };
+}
+async function one(it) {
+  const base = me.id + "/" + it.id + "/";
+  const main = photos.get(it.photo.toLowerCase());
+  if (!main) throw new Error("사진 없음: " + it.photo);
+  const p = { orig: null, thumb: null, label: null, extra: [] };
+  p.orig = await put(base + "orig.jpg", await shrink(main, 1600, 0.85));
+  p.thumb = await put(base + "thumb.jpg", await shrink(main, 800, 0.8));
+  if (it.label_photo) {
+    const lf = photos.get(it.label_photo.toLowerCase());
+    if (lf) p.label = await put(base + "label.jpg", await shrink(lf, 1600, 0.85));
+  }
+  let k = 1;
+  for (const x of arr(it.extra_photos)) {
+    const xf = photos.get(String(x).toLowerCase());
+    if (xf) p.extra.push(await put(base + "extra" + (k++) + ".jpg", await shrink(xf, 1600, 0.85)));
+  }
+  const { error } = await sb.from("items").insert(rowOf(it, p));
+  if (error) {
+    if (error.code === "23505") return "skip";
+    throw new Error("저장 실패: " + error.message);
+  }
+  return "ok";
+}
+$("go").onclick = async () => {
+  if (running) return;
+  await loadDone();
+  let todo = data.items.filter((it) => !done.has(it.id));
+  if ($("few").checked) todo = todo.slice(0, 3);
+  if (!todo.length) { say("m3", "올릴 것이 없어요. 모두 올라가 있어요."); $("s3ok").textContent = "완료"; return; }
+  running = true; halt = false; $("go").disabled = true; $("stop").disabled = false; $("log").textContent = "";
+  let ok = 0, bad = 0;
+  for (let i = 0; i < todo.length; i++) {
+    if (halt) break;
+    const it = todo[i];
+    say("m3", (i + 1) + " / " + todo.length + " · " + it.id + " " + (ko(it.name) || ""));
+    try { const r = await one(it); done.add(it.id); ok++; log((r === "skip" ? "건너뜀 " : "완료  ") + it.id + "  " + (ko(it.name) || "")); }
+    catch (err) { bad++; log("실패  " + it.id + "  " + err.message); if (/JWT|auth|401/i.test(err.message)) { halt = true; log("로그인이 풀렸어요. 다시 로그인한 뒤 이어서 올려 주세요."); } }
+    $("bar").style.width = Math.round(((i + 1) / todo.length) * 100) + "%";
+    $("nDone").textContent = data.items.filter((x) => done.has(x.id)).length;
+  }
+  running = false; $("go").disabled = false; $("stop").disabled = true;
+  const left = data.items.filter((it) => !done.has(it.id)).length;
+  say("m3", (halt ? "멈췄어요. " : "끝났어요. ") + "올라감 " + ok + " · 실패 " + bad + " · 남은 것 " + left, bad > 0);
+  $("s3ok").textContent = left ? "" : "완료";
+  if ($("few").checked && !bad && left) { $("few").checked = false; say("m3", "3개가 잘 올라갔어요. 이제 '올리기 시작'을 다시 누르면 나머지 " + left + "개가 올라가요."); }
+};
+$("stop").onclick = () => { halt = true; $("stop").disabled = true; say("m3", "지금 올리는 것까지만 하고 멈출게요."); };
+window.addEventListener("beforeunload", (e) => { if (running) { e.preventDefault(); e.returnValue = ""; } });
+</script>
+</body>
+</html>
