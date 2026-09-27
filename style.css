@@ -274,6 +274,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; }
 .top .date { font-size: 13px; font-weight: 500; color: var(--ink2); }
 .top .date b { color: var(--ink); font-weight: 600; }
+.datebox { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dayseg { display: flex; flex: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.dayseg button { height: 36px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--ink2); }
+.dayseg button.on { background: var(--espresso); color: var(--on); }
 .segc.full { display: flex; width: 100%; margin-top: 10px; } .segc.full button { flex: 1; justify-content: center; text-align: center; padding: 0 4px; }
 .occ { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .occ button { height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; font-weight: 500; color: var(--ink2); }
