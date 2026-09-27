@@ -225,7 +225,7 @@ async function loadItems() {
   // 분류 번호(W01…) 순으로: 종류별로 찍은 순서라 비슷한 옷끼리 모임. 앱에서 추가한 옷은 맨 앞.
   const ord = (i) => { const m = /^W(\d+)$/.exec(i.import_id || ""); return m ? Number(m[1]) : -1; };
   items = (data || []).sort((a, b) => ord(a) - ord(b));
-  await signUrls(items.map((i) => i.thumb_path).filter(Boolean));
+  await signUrls(items.flatMap((i) => [i.thumb_path, i.cut_path]).filter(Boolean));
 }
 async function signUrls(paths) {
   const need = paths.filter((p) => !urlCache.has(p));
@@ -233,7 +233,8 @@ async function signUrls(paths) {
   const { data } = await sb.storage.from(BUCKET).createSignedUrls(need, 3600 * 6);
   (data || []).forEach((r) => r.signedUrl && urlCache.set(r.path, r.signedUrl));
 }
-const thumbOf = (it) => urlCache.get(it.thumb_path) || "";
+// 목록·추천에는 배경을 지운 사진(있으면), 옷 상세에는 원래 사진
+const thumbOf = (it) => urlCache.get(it.cut_path) || urlCache.get(it.thumb_path) || "";
 const byId = (id) => items.find((i) => i.id === id);
 const isParked = (it) => it.status !== "active";
 const label = (k, v) => { const f = ATTR_FIELDS.find((x) => x[0] === k); return f && f[3] ? f[3](v) : v; };

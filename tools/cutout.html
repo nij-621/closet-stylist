@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>옷 배경 지우기</title>
+<style>
+:root{--paper:#fbfaf7;--ink:#171512;--ink2:#6b655c;--ink3:#857d72;--line:#e6e1d8;--well:#f4f1eb;--camel:#a9743f;--espresso:#2a2420;--warn:#8f3b2b;--num:"Archivo Narrow","Arial Narrow",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+body{font:16px/1.55 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",Pretendard,"Malgun Gothic",sans-serif;background:var(--paper);color:var(--ink);padding:28px 16px 80px;max-width:720px;margin:auto}
+h1{font-size:22px;font-weight:600;margin-bottom:4px}
+.lead{color:var(--ink2);font-size:14px;margin-bottom:24px}
+section{padding:20px 0;border-top:1px solid var(--line)}
+section[aria-disabled=true]{opacity:.45;pointer-events:none}
+h2{font-size:16px;font-weight:600;margin-bottom:10px;display:flex;gap:8px;align-items:baseline}
+h2 .n{font-family:var(--num);color:var(--ink3);font-weight:500}
+h2 .ok{color:var(--camel);font-size:13px;font-weight:500}
+label{display:block;font-size:13px;color:var(--ink2);margin:10px 0 4px}
+input[type=email],input[type=password]{width:100%;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;color:inherit}
+input:focus-visible,button:focus-visible{outline:2px solid var(--camel);outline-offset:2px}
+button{height:44px;padding:0 18px;border:0;border-radius:8px;background:var(--espresso);color:#fff;font:inherit;font-weight:500;cursor:pointer;transition:transform .12s ease-out}
+button:active{transform:scale(.97)}
+button.sub{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.msg{font-size:13.5px;margin-top:10px;color:var(--ink2)}
+.msg.err{color:var(--warn)}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.stat div{background:var(--well);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font-family:var(--num);font-size:22px;font-weight:600}
+.stat span{font-size:12px;color:var(--ink2)}
+.bar{height:6px;background:var(--well);border-radius:3px;overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;width:0;background:var(--camel);transition:width .2s ease-out}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink);margin-top:10px}
+.chk input{width:18px;height:18px;accent-color:var(--camel)}
+#out{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:14px}
+#out figure{background:var(--well);border-radius:8px;overflow:hidden}
+#out .im{aspect-ratio:4/5;display:block}
+#out img{width:100%;height:100%;object-fit:contain;display:block}
+#out figcaption{font-size:12px;color:var(--ink2);padding:6px 8px 8px;line-height:1.35}
+#out figcaption b{font-family:var(--num);font-weight:500;color:var(--ink)}
+#out figure.bad figcaption{color:var(--warn)}
+#out button{height:32px;padding:0 10px;font-size:12px;margin-top:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<h1>옷 배경 지우기</h1>
+<p class="lead">상의·하의·원피스·겉옷 사진에서 배경을 지워 옷만 남겨요. 사진은 이 컴퓨터 안에서 처리돼요. 한 벌에 10초쯤 걸리고, 멈췄다가 다시 눌러도 이어서 해요. 신발·가방·액세서리는 원래 사진 그대로 둬요.</p>
+
+<section id="s1">
+  <h2><span class="n">1</span> 로그인 <span class="ok" id="s1ok"></span></h2>
+  <form id="login">
+    <label for="em">이메일</label>
+    <input id="em" type="email" autocomplete="username" required>
+    <label for="pw">비밀번호</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <div class="row"><button type="submit">로그인</button><button type="button" class="sub" id="signout" hidden>로그아웃</button></div>
+  </form>
+  <p class="msg" id="m1"></p>
+</section>
+
+<section id="s2" aria-disabled="true">
+  <h2><span class="n">2</span> 배경 지우기 <span class="ok" id="s2ok"></span></h2>
+  <div class="stat">
+    <div><b id="nAll">0</b><span>옷</span></div>
+    <div><b id="nDone">0</b><span>끝난 옷</span></div>
+    <div><b id="nLeft">0</b><span>남은 옷</span></div>
+  </div>
+  <label class="chk"><input type="checkbox" id="few" checked> 먼저 3벌만 해 보고 확인하기</label>
+  <div class="row"><button type="button" id="go">시작</button><button type="button" class="sub" id="stop" disabled>멈추기</button></div>
+  <div class="bar"><i id="bar"></i></div>
+  <p class="msg" id="m2"></p>
+  <div id="out"></div>
+</section>
+
+<script type="module">
+import { SUPABASE_URL, SUPABASE_KEY } from "../config.js";
+const QS = new URLSearchParams(location.search);
+const MOCK = QS.has("mock") && ["localhost", "127.0.0.1"].includes(location.hostname);   // 개발 확인: test-photos로만, 아무것도 안 올림
+const $ = (id) => document.getElementById(id);
+const BUCKET = "wardrobe";
+const CATS = ["top", "bottom", "dress", "outer"];
+const MAX = 800;                                  // 긴 변
+let sb = null, me = null, rows = [], running = false, halt = false, removeBackground = null;
+
+const say = (id, t, err) => { const e = $(id); e.textContent = t || ""; e.classList.toggle("err", !!err); };
+const left = () => rows.filter((r) => !r.cut_path);
+function count() {
+  $("nAll").textContent = rows.length; $("nLeft").textContent = left().length; $("nDone").textContent = rows.length - left().length;
+  $("s2ok").textContent = rows.length && !left().length ? "완료" : "";
+}
+
+// ---------- 1. 로그인 ----------
+async function loadRows() {
+  if (MOCK) { rows = (QS.get("ids") || "W01,W17,W81,W77,W51").split(",").map((id) => ({ id, import_id: id, name: id, thumb_path: `../test-photos/${id}.jpg`, cut_path: null })); return count(); }
+  const { data, error } = await sb.from("items").select("id, import_id, name, category, thumb_path, cut_path").is("deleted_at", null).in("category", CATS).not("thumb_path", "is", null).order("import_id");
+  if (error) return say("m1", /cut_path/.test(error.message) ? "준비가 덜 됐어요. 004_cutout.sql을 먼저 실행해 주세요." : "옷장을 읽지 못했어요: " + error.message, true);
+  rows = data || []; count();
+}
+async function setUser(u) {
+  me = u;
+  $("s1ok").textContent = u ? u.email : "";
+  $("signout").hidden = !u; $("em").disabled = $("pw").disabled = !!u;
+  document.querySelector("#login button[type=submit]").disabled = !!u;
+  if (u) { say("m1", "로그인됐어요."); await loadRows(); }
+  $("s2").setAttribute("aria-disabled", u && rows.length ? "false" : "true");
+}
+if (MOCK) setUser({ email: "mock@localhost", id: "mock" });
+else {
+  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm");
+  sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+  $("login").onsubmit = async (e) => {
+    e.preventDefault(); say("m1", "확인하는 중…");
+    const { data: r, error } = await sb.auth.signInWithPassword({ email: $("em").value.trim(), password: $("pw").value });
+    $("pw").value = "";
+    if (error) return say("m1", error.message === "Invalid login credentials" ? "이메일이나 비밀번호가 맞지 않아요." : error.message, true);
+    await setUser(r.user);
+  };
+  $("signout").onclick = async () => { await sb.auth.signOut(); rows = []; count(); await setUser(null); say("m1", "로그아웃했어요."); };
+  sb.auth.getUser().then(({ data: r }) => { if (r?.user) setUser(r.user); });
+}
+
+// ---------- 2. 배경 지우기 ----------
+async function source(r) {
+  if (MOCK) return await (await fetch(r.thumb_path)).blob();
+  const { data, error } = await sb.storage.from(BUCKET).download(r.thumb_path);
+  if (error) throw new Error("사진을 받지 못했어요: " + error.message);
+  return data;
+}
+// 투명한 가장자리를 잘라 옷이 칸을 채우게 하고 WebP로 줄임. 남은 면적이 너무 작거나 크면 실패로 봄.
+async function trim(png) {
+  const bmp = await createImageBitmap(png);
+  const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+  const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(bmp, 0, 0); bmp.close?.();
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1, n = 0;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+    if (d[(y * c.width + x) * 4 + 3] > 24) { n++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  const share = n / (c.width * c.height);
+  if (x1 < 0 || share < 0.03) throw new Error("옷을 찾지 못했어요");
+  if (share > 0.92) throw new Error("배경이 거의 안 지워졌어요");
+  const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.03);
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(c.width - 1, x1 + pad); y1 = Math.min(c.height - 1, y1 + pad);
+  const w = x1 - x0 + 1, h = y1 - y0 + 1, s = Math.min(1, MAX / Math.max(w, h));
+  const o = document.createElement("canvas"); o.width = Math.round(w * s); o.height = Math.round(h * s);
+  o.getContext("2d").drawImage(c, x0, y0, w, h, 0, 0, o.width, o.height);
+  const blob = await new Promise((ok, no) => o.toBlob((b) => (b ? ok(b) : no(new Error("사진 변환 실패"))), "image/webp", 0.86));
+  if (blob.type !== "image/webp") throw new Error("이 브라우저는 WebP로 저장하지 못해요. 크롬에서 열어 주세요.");
+  return blob;
+}
+function card(r, blob, err) {
+  const f = document.createElement("figure"); f.dataset.id = r.id; if (err) f.className = "bad";
+  f.innerHTML = `<span class="im">${blob ? `<img alt="">` : ""}</span><figcaption><b></b> <span></span></figcaption>`;
+  if (blob) f.querySelector("img").src = URL.createObjectURL(blob);
+  f.querySelector("b").textContent = r.import_id || "";
+  f.querySelector("figcaption span").textContent = err ? err : r.name;
+  if (blob && !MOCK) {
+    const b = document.createElement("button"); b.className = "sub"; b.type = "button"; b.textContent = "원래 사진으로";
+    b.onclick = async () => {
+      b.disabled = true;
+      const { error } = await sb.from("items").update({ cut_path: null }).eq("id", r.id);
+      if (error) { b.disabled = false; return say("m2", "되돌리지 못했어요: " + error.message, true); }
+      r.cut_path = null; r.skip = true; f.querySelector("figcaption span").textContent = "원래 사진으로 돌렸어요"; b.remove(); count();
+    };
+    f.querySelector("figcaption").append(document.createElement("br"), b);
+  }
+  $("out").prepend(f);
+}
+async function one(r) {
+  const cut = await trim(await removeBackground(await source(r), { output: { format: "image/png" } }));
+  if (!MOCK) {
+    const path = r.thumb_path.replace(/[^/]+$/, "cut.webp");
+    const up = await sb.storage.from(BUCKET).upload(path, cut, { contentType: "image/webp", upsert: true });
+    if (up.error) throw new Error("올리기 실패: " + up.error.message);
+    const { error } = await sb.from("items").update({ cut_path: path }).eq("id", r.id);
+    if (error) throw new Error("저장 실패: " + error.message);
+    r.cut_path = path;
+  } else r.cut_path = "mock";
+  return cut;
+}
+$("go").onclick = async () => {
+  if (running) return;
+  let todo = left().filter((r) => !r.skip);
+  if ($("few").checked) todo = todo.slice(0, 3);
+  if (!todo.length) return say("m2", "남은 옷이 없어요.");
+  running = true; halt = false; $("go").disabled = true; $("stop").disabled = false;
+  let ok = 0, bad = 0;
+  try {
+    if (!removeBackground) { say("m2", "준비하는 중… 처음 한 번은 1분쯤 걸려요."); ({ removeBackground } = await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.6.0/+esm")); }
+    for (let i = 0; i < todo.length; i++) {
+      if (halt) break;
+      const r = todo[i];
+      say("m2", `${i + 1} / ${todo.length} · ${r.import_id || ""} ${r.name}`);
+      try { card(r, await one(r)); ok++; }
+      catch (err) { bad++; r.skip = true; card(r, null, err.message); if (/JWT|401/i.test(err.message)) { halt = true; say("m1", "로그인이 풀렸어요. 다시 로그인해 주세요.", true); } }
+      $("bar").style.width = Math.round(((i + 1) / todo.length) * 100) + "%"; count();
+    }
+  } catch (err) { say("m2", "준비하지 못했어요: " + err.message, true); running = false; $("go").disabled = false; $("stop").disabled = true; return; }
+  running = false; $("go").disabled = false; $("stop").disabled = true;
+  const rest = left().filter((r) => !r.skip).length;
+  say("m2", `${halt ? "멈췄어요." : "끝났어요."} 지움 ${ok} · 실패 ${bad} · 남은 것 ${rest}` + (bad ? " — 실패한 옷은 원래 사진으로 보여요." : ""), bad > 0);
+  if ($("few").checked && ok && rest) { $("few").checked = false; say("m2", `${ok}벌을 지웠어요. 아래 사진이 괜찮으면 '시작'을 다시 눌러 나머지 ${rest}벌을 해 주세요.`); }
+  window.__finished = true;
+};
+$("stop").onclick = () => { halt = true; $("stop").disabled = true; say("m2", "지금 하는 옷까지만 하고 멈출게요."); };
+window.addEventListener("beforeunload", (e) => { if (running) { e.preventDefault(); e.returnValue = ""; } });
+</script>
+</body>
+</html>
