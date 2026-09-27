@@ -80,22 +80,8 @@
 
   <!-- 등록 -->
   <main id="tab-add" class="tab" hidden>
-    <header class="ph-head"><div class="row"><div class="h1">등록</div><span id="add-progress" class="muted"></span></div></header>
-    <div class="add-body">
-      <label class="drop" id="drop-front">
-        <input type="file" id="file-front" accept="image/*" multiple hidden>
-        <svg class="i"><use href="#i-cam"/></svg>
-        <b>앞면 사진</b><span>흰 바닥에 눕혀서 위에서. 여러 장 선택하면 순서대로 등록</span>
-      </label>
-      <label class="drop small" id="drop-label">
-        <input type="file" id="file-label" accept="image/*" hidden>
-        <svg class="i s"><use href="#i-tag"/></svg>
-        <b>케어 라벨 (선택)</b><span>혼용률이 읽히게 가까이서</span>
-      </label>
-      <div id="add-preview" class="preview" hidden></div>
-      <button id="add-go" class="btn pri big" disabled>분석하고 저장</button>
-      <p id="add-msg" class="muted small"></p>
-    </div>
+    <header class="ph-head"><div class="row"><div class="h1" data-t="addTitle">옷 등록</div><button class="icon-btn" data-settings aria-label="설정"><svg class="i"><use href="#i-gear"/></svg></button></div></header>
+    <div class="add-body" id="add-body"></div>
   </main>
 
   <!-- 판정 -->

@@ -5,7 +5,7 @@ let sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = (id) => document.getElementById(id);
 const todayStr = () => new Date().toLocaleDateString("sv-SE");
 const BUCKET = "wardrobe";
-const EXTRACT_VERSION = "2026-09-13.2";
+const EXTRACT_VERSION = "2026-09-27.1";
 // 개발용: localhost에서 ?mock 을 붙이면 로그인 없이 mock.js(가짜 옷장, gitignore)로 화면만 확인
 const QS = new URLSearchParams(location.search);
 const MOCK = QS.has("mock") && ["localhost", "127.0.0.1"].includes(location.hostname);
@@ -31,6 +31,21 @@ const T = {
   kind: { ko: { safe: "안전", vary: "변주", dare: "도전", manual: "직접" }, en: { safe: "Safe", vary: "Variation", dare: "New", manual: "Custom" } },
   slot: { ko: { outer: "아우터", top: "상의", bottom: "하의", shoes: "신발", bag: "가방", acc_earring: "귀걸이", acc_neck: "목걸이·스카프", acc_wrist: "팔찌·반지", acc_socks: "양말", acc_gloves: "장갑" }, en: { outer: "Outer", top: "Top", bottom: "Bottom", shoes: "Shoes", bag: "Bag", acc_earring: "Earrings", acc_neck: "Necklace · scarf", acc_wrist: "Bracelet · ring", acc_socks: "Socks", acc_gloves: "Gloves" } },
   noOuter: { ko: "아우터 없음", en: "No outer" }, add: { ko: "추가", en: "Add" }, none: { ko: "없음", en: "None" }, takeOff: { ko: "빼기", en: "Take off" },
+  addTitle: { ko: "옷 등록", en: "Add clothes" },
+  addT: {
+    ko: { pick: ["사진 여러 장 고르기", "한 사진에 한 벌. 옷걸이에 걸거나 눕혀도 돼요. 라벨 사진은 그 옷 바로 뒤에 찍으면 자동으로 붙어요"], picked: (n) => `${n}장 선택 · 다시 고르기`,
+      where: "어디에 입나요?", perItem: "(옷마다 나중에 바꿀 수 있어요)", now: "지금 상태", cut: "옷 사진 배경 지우기", needOne: "회사·외출 중 하나는 필요해요",
+      go: "올리고 분석", going: "하는 중…", keep: "사진을 먼저 저장해요. 중간에 닫아도 이어서 할 수 있어요.", saving: (i, n) => `사진 저장 ${i} / ${n}`, reading: (i, n) => `분석 ${i} / ${n}`, cutting: (i, n) => `배경 지우는 중 ${i} / ${n}`,
+      waiting: "분석 대기", unnamed: "이름 없는 옷", noPhoto: "사진을 받지 못했어요", cutFail: "이 기기에서는 배경을 지우지 못했어요. 옷은 원래 사진으로 등록됐어요.",
+      pending: (n) => `분석을 기다리는 사진 ${n}장`, resume: "이어서 분석", sum: (g, l) => `옷 ${g}벌 등록${l ? ` · 라벨 ${l}장 연결` : ""}`, failed: (n) => `분석 못 한 사진 ${n}장 — 위의 "이어서 분석"을 눌러 주세요`,
+      labelPrev: "라벨 연결됨", labelNext: "뒤 사진 라벨과 연결", check: "확인", labelAsk: "라벨이 이 옷의 것이 맞나요?", review: "하나씩 확인하기", foot: "소재는 라벨에서 읽고, 라벨이 없으면 \"미확인\"으로 남겨요." },
+    en: { pick: ["Pick several photos", "One item per photo, hanging or flat. Shoot the label right after its garment and it pairs automatically"], picked: (n) => `${n} selected · pick again`,
+      where: "Where do you wear them?", perItem: "(change per item later)", now: "Current status", cut: "Remove the background from clothes", needOne: "Pick at least one of Work / Out",
+      go: "Upload & analyze", going: "Working…", keep: "Photos are saved first. You can leave and resume later.", saving: (i, n) => `Saving photo ${i} / ${n}`, reading: (i, n) => `Analyzing ${i} / ${n}`, cutting: (i, n) => `Removing background ${i} / ${n}`,
+      waiting: "Waiting for analysis", unnamed: "Unnamed item", noPhoto: "Couldn't fetch the photo", cutFail: "This device couldn't remove the background. Items were added with the original photo.",
+      pending: (n) => `${n} photos waiting for analysis`, resume: "Resume", sum: (g, l) => `${g} items added${l ? ` · ${l} labels paired` : ""}`, failed: (n) => `${n} photos not analyzed — tap "Resume" above`,
+      labelPrev: "Label paired", labelNext: "Paired with the next label", check: "Check", labelAsk: "Does this label belong to this item?", review: "Review one by one", foot: "Material is read from the label; without one it stays \"unknown\"." },
+  },
   buyTitle: { ko: "내게 맞는 한 벌일까", en: "Will this suit me?" },
   buy: {
     ko: { photo: ["상품 사진", "여러 장 가능"], page: ["상세 페이지 캡처", "치수표·혼용률을 읽어 칸에 채워요"], count: (n) => `${n}장 선택 · 다시 고르기`, reading: "치수표를 읽는 중…", noChart: "캡처에서 치수표를 찾지 못했어요. 치수를 직접 넣어 주세요.",
@@ -139,6 +154,7 @@ function setLang(l) {
   if (!$("tab-closet").hidden) renderCloset();
   if (!$("tab-today").hidden) renderToday();
   if (!$("tab-judge").hidden) renderBuy();
+  if (!$("tab-add").hidden) renderAdd();
 }
 
 // ─────────────────────────────────────────── 고정 프로필 (본인 전용)
@@ -212,6 +228,7 @@ function showTab(name) {
   if (name === "today") renderToday();
   if (name === "closet") renderCloset();
   if (name === "judge") renderBuy();
+  if (name === "add") renderAdd();
 }
 document.querySelectorAll("#tabbar button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
 
@@ -251,7 +268,9 @@ async function loadItems() {
   if (error) { toast("옷장 불러오기 실패: " + error.message); return; }
   // 분류 번호(W01…) 순으로: 종류별로 찍은 순서라 비슷한 옷끼리 모임. 앱에서 추가한 옷은 맨 앞.
   const ord = (i) => { const m = /^W(\d+)$/.exec(i.import_id || ""); return m ? Number(m[1]) : -1; };
-  items = (data || []).sort((a, b) => ord(a) - ord(b));
+  // 분석을 기다리는 사진(등록 중 끊긴 것)은 옷장·추천에 넣지 않음
+  pendingRows = (data || []).filter(isPending);
+  items = (data || []).filter((r) => !isPending(r)).sort((a, b) => ord(a) - ord(b));
   await signUrls(items.flatMap((i) => [i.thumb_path, i.cut_path]).filter(Boolean));
 }
 async function signUrls(paths) {
@@ -298,87 +317,208 @@ async function resize(file, max, quality) {
   return await new Promise((ok) => c.toBlob(ok, "image/jpeg", quality));
 }
 
-// ─────────────────────────────────────────── 등록
-const EXTRACT_PROMPT = `You catalog ONE garment from a flat-lay photo for a personal wardrobe app. Return strict JSON:
-{
- "name": short Korean name like "세이지 니트" or "차콜 슬랙스" (color + type, ≤ 8 chars),
- "category": "top"|"bottom"|"outer"|"shoes"|"dress"|"bag"|"acc",
- "subtype": Korean type (셔츠/블라우스/티셔츠/니트/가디건/재킷/코트/트렌치/패딩/슬랙스/데님/스커트/원피스/스니커즈/로퍼/부츠 ...),
- "color_name": Korean color name, "color_hex": "#rrggbb" dominant, "color_tone": "warm"|"cool"|"neutral",
- "pattern": "solid"|"stripe"|"check"|"print"|"other",
- "length": "crop"|"regular"|"long",
- "silhouette": "slim"|"straight"|"oversized"|"aline"|"hline"|"wide"|"flare",
- "neckline": "crew"|"v"|"collar"|"turtle"|"boat"|"square"|"none",
- "layer_role": "base"|"mid"|"outer",
- "design_lines": array from ["front_button","wrap","asymmetric_hem","center_slit","center_seam","pleats","ruffle","flounce","tiered","belted","double_breasted","collarless","none"] (visible construction details),
- "tuck": "none"|"one"|"two"|"pintuck"|null (pants only),
- "skirt_type": "wrap"|"pareo"|"buttoned_straight"|"slit_pencil"|"pencil"|"bias"|"aline"|"pleated"|"mermaid"|"trumpet"|"flounced"|"tiered"|"tulle"|"other"|null (skirts only),
- "collar_type": "collarless_v"|"pointed_lapel"|"stand"|"small_lapel"|"shawl_round"|"wide_lapel"|"hood"|"crew"|"other"|null (outer and collared tops),
- "coat_type": "trench_single"|"trench_double"|"duster"|"military_single"|"empire"|"cocoon"|"box"|"puffer"|"parka"|"peacoat"|"other"|null (coats only),
- "material_guess": Korean guess like "울 혼방" or "면", "material_confidence": "high"|"medium"|"low",
- "season": array of "spring"|"summer"|"autumn"|"winter",
- "warmth": 1-5 (1 = sheer summer, 5 = winter outer),
- "formality_work": boolean (office-appropriate), "formality_out": boolean (weekend/dinner-appropriate),
- "notes": one Korean sentence on anything relevant for styling this client (e.g. shoulder volume, hip coverage)
-}
-Judge only what is visible. If a label photo is included, read the fiber composition into "label_material" (verbatim, Korean) and set material_confidence "high".`;
+// ─────────────────────────────────────────── 등록 (v5)
+// 사진 여러 장(라벨이 섞여 있어도 됨) → ① 사진부터 저장(분석 대기 행) → ② 한 장씩 분석 → 라벨은 앞(없으면 뒤) 옷에 붙임.
+// 중간에 닫아도 분석 대기 행이 남아 "이어서 분석"으로 계속한다. 삭제 권한이 없어 라벨 행은 deleted_at으로 치움.
+const PENDING = "pending";
+const CUT_CATS = ["top", "bottom", "dress", "outer"];
+const EXTRACT_PROMPT = `You catalog ONE photo for a personal wardrobe app. The item may hang on a door, lie on a bed or be held in a hand — ignore the background.
+First decide "kind": "label" if the photo is a care/brand label or tag shot close-up, otherwise "garment".
 
-$("file-front").onchange = (e) => { addQueue = [...e.target.files]; addLabel = null; $("file-label").value = ""; renderAddPreview(); };
-$("file-label").onchange = (e) => { addLabel = e.target.files[0] || null; renderAddPreview(); };
-function renderAddPreview() {
-  const p = $("add-preview"); p.innerHTML = ""; p.hidden = !addQueue.length;
-  addQueue.forEach((f) => { const im = document.createElement("img"); im.src = URL.createObjectURL(f); p.appendChild(im); });
-  if (addLabel) { const im = document.createElement("img"); im.className = "lab"; im.src = URL.createObjectURL(addLabel); p.appendChild(im); }
-  $("drop-front").classList.toggle("has", !!addQueue.length);
-  $("drop-label").classList.toggle("has", !!addLabel);
-  $("drop-label").hidden = addQueue.length > 1;   // 라벨은 한 벌씩 등록할 때만
-  $("add-go").disabled = !addQueue.length;
-  $("add-progress").textContent = addQueue.length ? `${addQueue.length}장 선택` : "";
-  $("add-msg").textContent = addQueue.length > 1 ? "여러 장은 라벨 없이 앞면만 등록돼요. 소재는 나중에 확인 화면에서." : "";
+If kind is "label", return JSON {"kind":"label","label_text":"text as printed, shortened","material":"fiber composition in Korean, e.g. 울 80% 나일론 20%" or null,"material_en":English or null,"brand":string|null,"size_label":string|null}.
+
+If kind is "garment", return JSON:
+{"kind":"garment",
+ "name": short Korean name, color + one feature + type (e.g. "네이비 스트라이프 셔츠"), "name_en": same in English,
+ "category": "top"|"bottom"|"outer"|"shoes"|"dress"|"bag"|"acc",
+ "subtype": Korean type (셔츠/블라우스/티셔츠/니트/가디건/재킷/코트/슬랙스/데님/스커트/원피스/스니커즈/로퍼/부츠 …), "subtype_en": English,
+ "color_name": Korean, "color_name_en": English, "color_hex": "#rrggbb" dominant, "color_tone": "warm"|"cool"|"neutral",
+ "pattern": "solid"|"stripe"|"check"|"print"|"other",
+ "length": "crop"|"regular"|"long"|null, "sleeve": "long"|"three_quarter"|"short"|"cap"|"sleeveless"|null,
+ "silhouette": "slim"|"straight"|"oversized"|"aline"|"hline"|"wide"|"flare"|null,
+ "neckline": "crew"|"v"|"collar"|"turtle"|"boat"|"square"|"none"|null,
+ "layer_role": "base"|"mid"|"outer"  (tops: a cardigan or overshirt that can be worn alone OR over another top is "mid"; one only thrown over is "outer"; everything else "base"),
+ "acc_type": "earring"|"necklace"|"bracelet"|"ring"|"scarf"|"socks"|"hair"|"gloves"|"belt"|"hat"|null (category acc only),
+ "metal": "gold"|"rose_gold"|"silver"|null (jewellery only), "heel_cm": number|null (shoes only, estimate),
+ "design_lines": array from ["front_button","wrap","asymmetric_hem","center_slit","center_seam","pleats","ruffle","flounce","tiered","belted","double_breasted","collarless"],
+ "tuck": "none"|"one"|"two"|"pintuck"|null (trousers only),
+ "skirt_type": "wrap"|"pencil"|"bias"|"aline"|"pleated"|"mermaid"|"flounced"|"tiered"|"tulle"|"other"|null (skirts only),
+ "collar_type": "collarless_v"|"pointed_lapel"|"stand"|"small_lapel"|"shawl_round"|"wide_lapel"|"hood"|"crew"|"other"|null,
+ "coat_type": "trench_single"|"trench_double"|"duster"|"cocoon"|"box"|"puffer"|"parka"|"peacoat"|"other"|null (coats only),
+ "material_guess": Korean guess like "울 혼방", "material_guess_en": English, "material_confidence": "high"|"medium"|"low",
+ "season": array of "spring"|"summer"|"autumn"|"winter" (when it is comfortable worn on its own), "warmth": 1-5 thickness (null for bags and accessories),
+ "rain": boolean (fine in rain),
+ "styling_note_ko": 2-3 short plain Korean sentences (해요체) on how she wears it; one idea per sentence; no jargon, no body-type labels or ratios,
+ "styling_note_en": the same in plain English,
+ "questions": Korean array of things you could not see and she should confirm (may be empty)}
+Judge only what is visible. Never invent a brand.`;
+
+const add = { files: [], work: true, out: true, status: "active", cut: true, running: false, step: "", done: 0, total: 0, summary: null, error: "" };
+let pendingRows = [];
+const AT = (k) => t("addT")[k];
+const isPending = (r) => r.extraction_version === PENDING;
+
+function renderAdd() {
+  const a = add; const body = $("add-body"); const s = a.summary;
+  body.innerHTML = `
+    ${pendingRows.length && !a.running ? `<div class="ad-resume"><span>${AT("pending")(pendingRows.length)}</span><button id="ad-resume">${icon("i-refresh", "i xs")} ${AT("resume")}</button></div>` : ""}
+    <label class="drop ${a.files.length ? "has" : ""}" id="ad-drop"><input type="file" id="ad-files" accept="image/*" multiple hidden ${a.running ? "disabled" : ""}>${icon("i-cam")}<b>${a.files.length ? AT("picked")(a.files.length) : AT("pick")[0]}</b><span>${AT("pick")[1]}</span></label>
+    ${a.files.length ? `<div class="ad-prev">${a.files.map((f) => `<img src="${esc(f.url)}" alt="">`).join("")}</div>` : ""}
+    <span class="by-lbl">${AT("where")} <span class="faint">${AT("perItem")}</span></span>
+    <div class="ad-opts"><button data-aw="work" class="${a.work ? "on" : ""}">${t("tpo").work}</button><button data-aw="out" class="${a.out ? "on" : ""}">${t("tpo").out}</button></div>
+    <span class="by-lbl">${AT("now")}</span>
+    <div class="ad-opts">${["active", "paused", "stored"].map((k) => `<button data-as="${k}" class="${a.status === k ? "on" : ""}">${t("st")[k]}</button>`).join("")}</div>
+    <label class="switch"><input type="checkbox" id="ad-cut" ${a.cut ? "checked" : ""}> ${AT("cut")}</label>
+    <button class="btn pri big" id="ad-go" ${a.files.length && !a.running ? "" : "disabled"}>${a.running ? AT("going") : AT("go")}</button>
+    ${a.running ? `<div class="ad-prog"><b>${esc(a.step)}</b><div class="pb"><i style="width:${a.total ? Math.round((a.done / a.total) * 100) : 0}%"></i></div><span>${AT("keep")}</span></div>` : ""}
+    ${a.error ? `<p class="by-note warn">${esc(a.error)}</p>` : ""}
+    ${s ? `<div class="ad-sum"><b>${AT("sum")(s.items.length, s.labels)}</b>${s.failed ? `<span class="warn">${AT("failed")(s.failed)}</span>` : ""}
+      ${s.items.map((r) => `<button class="ad-row" data-ai="${r.id}"><img src="${esc(thumbOf(r))}" alt=""><span class="tx"><b>${esc(nameOf(r))}</b><span>${t("cats")[r.category]}${r.label_path ? " · " + (r._labelNext ? AT("labelNext") : AT("labelPrev")) : ""}</span></span>${r._labelNext ? `<span class="ask">${AT("check")}</span>` : icon("i-chev", "i s go")}</button>`).join("")}
+      <button class="btn line" id="ad-review">${AT("review")}</button></div>` : ""}
+    <p class="tiny faint by-foot">${AT("foot")}</p>`;
+  $("ad-files").onchange = (e) => { if (!e.target.files.length) return; a.files = [...e.target.files].map((f) => ({ file: f, url: URL.createObjectURL(f) })); a.summary = null; a.error = ""; renderAdd(); };
+  body.querySelectorAll("[data-aw]").forEach((x) => (x.onclick = () => { const k = x.dataset.aw; if (a[k] && !a[k === "work" ? "out" : "work"]) return toast(AT("needOne")); a[k] = !a[k]; renderAdd(); }));
+  body.querySelectorAll("[data-as]").forEach((x) => (x.onclick = () => { a.status = x.dataset.as; renderAdd(); }));
+  body.querySelectorAll("[data-ai]").forEach((x) => (x.onclick = () => { const it = byId(x.dataset.ai); if (it) openReview(it); }));
+  $("ad-cut").onchange = (e) => { a.cut = e.target.checked; };
+  $("ad-go").onclick = () => runAdd(true);
+  const rs = $("ad-resume"); if (rs) rs.onclick = () => runAdd(false);
+  const rv = $("ad-review"); if (rv) rv.onclick = () => { showTab("closet"); const q = items.filter((i) => !i.reviewed_at); if (q.length) openReview(q[0], q); };
 }
-$("add-go").onclick = async () => {
-  if (!settings.key) return openSettings();
-  const files = addQueue.slice(); const lab = addQueue.length === 1 ? addLabel : null;
-  $("add-go").disabled = true;
-  let ok = 0;
-  for (let i = 0; i < files.length; i++) {
-    $("add-progress").textContent = `${i + 1} / ${files.length} 분석 중`;
-    try { await registerOne(files[i], lab); ok++; }
-    catch (err) { console.error(err); toast(`${i + 1}번째 실패: ${err.message}`, 4000); }
-  }
-  addQueue = []; addLabel = null; $("file-front").value = ""; $("file-label").value = "";
-  renderAddPreview();
-  $("add-progress").textContent = ""; $("add-msg").textContent = `${ok}벌 등록됨 · 옷장 탭에서 확인·수정`;
-  await Promise.all([loadItems(), loadProfile()]);
-};
-async function registerOne(file, labelFile) {
-  const id = crypto.randomUUID();
-  const [orig, thumb] = await Promise.all([resize(file, 1600, 0.86), resize(file, 800, 0.8)]);
-  const base = `${me.id}/${id}`;
-  const up = async (path, blob) => { const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: true }); if (error) throw error; };
-  await up(`${base}/orig.jpg`, orig); await up(`${base}/thumb.jpg`, thumb);
-  let labelBlob = null;
-  if (labelFile) { labelBlob = await resize(labelFile, 1200, 0.85); await up(`${base}/label.jpg`, labelBlob); }
-  const parts = [{ text: EXTRACT_PROMPT }, await blobToInline(thumb)];
-  if (labelBlob) parts.push({ text: "Care label photo:" }, await blobToInline(labelBlob));
-  const a = await gemini(parts);
-  const src = {}; ["category", "subtype", "color_name", "pattern", "length", "silhouette", "neckline", "warmth", "season"].forEach((k) => (src[k] = "model"));
-  let material = a.label_material || null;
-  if (material) src.material = "label";
-  else if (a.material_confidence === "high") { material = a.material_guess; src.material = "model"; }
-  else src.material = "unknown";
-  const row = {
-    id, owner: me.id, name: a.name || `${a.color_name || ""} ${a.subtype || ""}`.trim(),
-    category: a.category, subtype: a.subtype, color_name: a.color_name, color_hex: a.color_hex, color_tone: a.color_tone,
-    pattern: a.pattern, length: a.length, silhouette: a.silhouette, neckline: a.neckline, layer_role: a.layer_role,
-    material, material_guess: a.material_guess, season: a.season || [], warmth: a.warmth || 3,
-    formality_work: !!a.formality_work, formality_out: a.formality_out !== false,
-    notes: a.notes || "", attr_src: src, status: "active",
-    photo_path: `${base}/orig.jpg`, thumb_path: `${base}/thumb.jpg`, label_path: labelBlob ? `${base}/label.jpg` : null,
-    extraction: a, extraction_version: EXTRACT_VERSION,
+const addStep = (msg, done) => { add.step = msg; if (done != null) add.done = done; if (!$("tab-add").hidden) renderAdd(); };
+const putFile = async (path, blob, type = "image/jpeg") => { const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: type, upsert: true }); if (error) throw new Error(error.message); };
+
+async function runAdd(withNew) {
+  const a = add; if (a.running) return;
+  if (!MOCK && !settings.key) return openSettings();
+  a.running = true; a.error = ""; a.summary = null;
+  const blobs = new Map();                       // 이번에 올린 사진은 다시 내려받지 않음
+  try {
+    // ① 사진부터 저장
+    if (withNew && a.files.length) {
+      const batch = Date.now(); a.total = a.files.length * 2; a.done = 0;
+      for (let i = 0; i < a.files.length; i++) {
+        addStep(AT("saving")(i + 1, a.files.length), i);
+        const f = a.files[i].file; const id = crypto.randomUUID(); const base = `${me.id}/${id}`;
+        const [orig, thumb] = [await resizeUp(f, 1600, 0.86), await resizeUp(f, 800, 0.8)];
+        await putFile(`${base}/orig.jpg`, orig); await putFile(`${base}/thumb.jpg`, thumb);
+        const row = { id, owner: me.id, name: AT("waiting"), category: "top", status: a.status, formality_work: a.work, formality_out: a.out,
+          attr_src: { formality_work: "default", formality_out: "default", status: "default" }, photo_path: `${base}/orig.jpg`, thumb_path: `${base}/thumb.jpg`,
+          extraction: { batch, idx: i, cut: a.cut }, extraction_version: PENDING };
+        const { error } = await sb.from("items").insert(row);
+        if (error) throw new Error(error.message);
+        blobs.set(id, thumb); pendingRows.push(row);
+      }
+      a.files = [];
+    }
+    // ② 한 장씩 분석
+    const todo = [...pendingRows].sort((x, y) => (x.extraction?.batch - y.extraction?.batch) || (x.extraction?.idx - y.extraction?.idx));
+    a.total = todo.length * (withNew ? 2 : 1); const off = withNew ? todo.length : 0;
+    const made = []; let labels = 0, failed = 0, waitLabel = null, cutOk = true;
+    for (let i = 0; i < todo.length; i++) {
+      const row = todo[i]; addStep(AT("reading")(i + 1, todo.length), off + i);
+      try {
+        const thumb = blobs.get(row.id) || (await sb.storage.from(BUCKET).download(row.thumb_path)).data;
+        if (!thumb) throw new Error(AT("noPhoto"));
+        const r = await askAI("extract", { idx: row.extraction?.idx ?? i, name: row.thumb_path }, [{ text: EXTRACT_PROMPT }, await blobToInline(thumb)]);
+        if (r.kind === "label") {
+          const prev = made[made.length - 1]; const near = prev && prev._batch === row.extraction?.batch && prev._idx === (row.extraction?.idx ?? 0) - 1 && !prev.label_path ? prev : null;
+          const lab = { row, r };
+          if (near) { await attachLabel(near, lab, false); labels++; } else { if (waitLabel) await dropRow(waitLabel.row); waitLabel = lab; }
+          continue;
+        }
+        const it = await saveGarment(row, r);
+        made.push(it);
+        if (waitLabel && waitLabel.row.extraction?.batch === row.extraction?.batch) { await attachLabel(it, waitLabel, true); labels++; waitLabel = null; }
+        if (cutOk && row.extraction?.cut !== false && CUT_CATS.includes(it.category)) {
+          addStep(AT("cutting")(i + 1, todo.length));
+          try { await cutOne(it, thumb); } catch (e) { cutOk = false; a.error = AT("cutFail"); }
+        }
+      } catch (e) { failed++; a.error = e.message; if (/API|키|key|429|모델/i.test(e.message)) break; }
+    }
+    if (waitLabel) await dropRow(waitLabel.row);
+    await loadItems();
+    a.summary = { items: made.map((m) => Object.assign(byId(m.id) || m, { _labelNext: m._labelNext })), labels, failed: pendingRows.length };
+  } catch (e) { a.error = e.message; await loadItems().catch(() => {}); }
+  a.running = false; a.step = "";
+  if (!$("tab-add").hidden) renderAdd();
+}
+// EXIF 회전을 반영해 줄임
+async function resizeUp(file, max, quality) {
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height); bmp.close?.();
+  return await new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("사진 변환 실패"))), "image/jpeg", quality));
+}
+const oneOf = (v, list) => (list.includes(v) ? v : null);
+async function saveGarment(row, r) {
+  const cat = oneOf(r.category, OPT.category) || "top"; const wear = !["bag", "acc"].includes(cat);
+  const src = { ...row.attr_src }; ["category", "subtype", "color_name", "pattern", "length", "sleeve", "silhouette", "neckline", "layer_role", "season", "warmth", "acc_type", "metal", "heel_cm"].forEach((k) => (src[k] = "model"));
+  src.material = "unknown";
+  const patch = {
+    name: String(r.name || `${r.color_name || ""} ${r.subtype || ""}`).trim() || AT("unnamed"), name_en: r.name_en || null,
+    category: cat, subtype: r.subtype || null, subtype_en: r.subtype_en || null,
+    color_name: r.color_name || null, color_name_en: r.color_name_en || null, color_hex: /^#[0-9a-f]{6}$/i.test(r.color_hex || "") ? r.color_hex : null, color_tone: oneOf(r.color_tone, ["warm", "cool", "neutral"]),
+    pattern: oneOf(r.pattern, OPT.pattern), length: oneOf(r.length, OPT.length) || null, sleeve: oneOf(r.sleeve, OPT.sleeve) || null,
+    silhouette: oneOf(r.silhouette, OPT.silhouette) || null, neckline: oneOf(r.neckline, OPT.neckline) || null,
+    layer_role: cat === "outer" ? "outer" : wear ? oneOf(r.layer_role, OPT.layer_role) || "base" : null,
+    acc_type: cat === "acc" ? oneOf(r.acc_type, ACC_TYPES) : null, metal: oneOf(r.metal, ["gold", "rose_gold", "silver"]), heel_cm: cat === "shoes" && Number(r.heel_cm) >= 0 ? Number(r.heel_cm) : null,
+    design_lines: (Array.isArray(r.design_lines) ? r.design_lines : []).filter((d) => d && d !== "none"), tuck: r.tuck || null, skirt_type: r.skirt_type || null, collar_type: r.collar_type || null, coat_type: r.coat_type || null,
+    material: null, material_guess: r.material_guess || null, material_guess_en: r.material_guess_en || null, material_confidence: oneOf(r.material_confidence, ["high", "medium", "low"]),
+    season: (Array.isArray(r.season) ? r.season : []).filter((s) => SEASONS.includes(s)), warmth: wear ? Math.min(5, Math.max(1, Math.round(Number(r.warmth) || 3))) : null,
+    rain: !!r.rain, recommend: cat === "acc" && r.acc_type === "hair" ? "on_request" : "auto",
+    styling_note_ko: r.styling_note_ko || null, styling_note_en: r.styling_note_en || null, notes: r.styling_note_ko || null,
+    questions: (Array.isArray(r.questions) ? r.questions : []).filter(Boolean).slice(0, 5),
+    attr_src: src, extraction: { ...r, batch: row.extraction?.batch, idx: row.extraction?.idx }, extraction_version: EXTRACT_VERSION, reviewed_at: null,
   };
-  const { error } = await sb.from("items").insert(row);
-  if (error) throw error;
+  const { error } = await sb.from("items").update(patch).eq("id", row.id);
+  if (error) throw new Error(error.message);
+  pendingRows = pendingRows.filter((p) => p.id !== row.id);
+  return { ...row, ...patch, _batch: row.extraction?.batch, _idx: row.extraction?.idx ?? 0 };
+}
+// 라벨 사진을 옷에 붙이고, 라벨 행은 치움. next = 뒤 사진과 연결(확인 필요)
+async function attachLabel(it, lab, next) {
+  const { row, r } = lab; const src = { ...it.attr_src };
+  const patch = { label_path: row.photo_path, label_text: r.label_text || null };
+  if (r.material) { patch.material = r.material; patch.material_en = r.material_en || null; src.material = "label"; }
+  if (r.brand) { patch.brand = r.brand; src.brand = "label"; }
+  if (r.size_label) { patch.size_label = r.size_label; src.size_label = "label"; }
+  patch.attr_src = src;
+  if (next) patch.questions = [...(it.questions || []), AT("labelAsk")];
+  const { error } = await sb.from("items").update(patch).eq("id", it.id);
+  if (error) throw new Error(error.message);
+  Object.assign(it, patch, { _labelNext: next, _idx: next ? it._idx : row.extraction?.idx ?? it._idx });
+  await dropRow(row);
+}
+async function dropRow(row) {
+  await sb.from("items").update({ deleted_at: new Date().toISOString(), extraction_version: "label" }).eq("id", row.id);
+  pendingRows = pendingRows.filter((p) => p.id !== row.id);
+}
+// 배경 지우기(기기 안에서). 투명한 가장자리를 잘라 WebP로.
+let bgLib = null;
+async function cutOne(it, thumb) {
+  if (MOCK) return;
+  bgLib ||= await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.6.0/+esm");
+  const png = await Promise.race([bgLib.removeBackground(thumb, { output: { format: "image/png" } }), new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 90000))]);
+  const bmp = await createImageBitmap(png);
+  const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+  const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(bmp, 0, 0); bmp.close?.();
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1, n = 0;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 24) { n++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const share = n / (c.width * c.height);
+  if (x1 < 0 || share < 0.03 || share > 0.92) return;                  // 옷을 못 찾았거나 배경이 안 지워짐 → 원래 사진 그대로
+  const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.03);
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(c.width - 1, x1 + pad); y1 = Math.min(c.height - 1, y1 + pad);
+  const o = document.createElement("canvas"); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1;
+  o.getContext("2d").drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+  let blob = await new Promise((ok) => o.toBlob(ok, "image/webp", 0.86));
+  if (!blob || blob.type !== "image/webp") blob = await new Promise((ok) => o.toBlob(ok, "image/png"));   // 사파리는 WebP로 저장하지 못함
+  if (!blob) return;
+  const path = it.thumb_path.replace(/[^/]+$/, blob.type === "image/webp" ? "cut.webp" : "cut.png");
+  await putFile(path, blob, blob.type);
+  await sb.from("items").update({ cut_path: path }).eq("id", it.id);
 }
 
 // ─────────────────────────────────────────── 옷장
@@ -1151,7 +1291,7 @@ Return JSON: {"score":0-100,"confidence":"high"|"medium"|"low",
 "evidence":[exactly 4 of {"src":"chart"|"photo"|"text","ko":"one short plain Korean sentence; when src is chart, name the number","en":"same in English"}],
 "color_ko":string|null,"color_en":string|null,
 "subtype":"Korean type (블라우스, 슬랙스 …)","color_name":"Korean color name","color_tone":"warm"|"cool"|"neutral",
-"formality_work":boolean,"formality_out":boolean,"season":["spring"|"summer"|"fall"|"winter"]}
+"formality_work":boolean,"formality_out":boolean,"season":["spring"|"summer"|"autumn"|"winter"]}
 In evidence sentences you MAY state measurements, but keep the wording plain.` }];
     for (const p of b.photos) parts.push(await blobToInline(await resize(p.file, 1200, 0.85)));
     const r = await askAI("judge", { cat: b.cat, vals, color: b.color }, parts);
@@ -1221,7 +1361,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.11</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.12</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
