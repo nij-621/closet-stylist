@@ -794,7 +794,10 @@ const comboKey = (ids) => ids.map(byId).filter((i) => i && CORE.includes(slotOf(
 // 치마·원피스에 양말이 없으면 아침 기온으로 스타킹을 고른다. 직접 고른 값(o.legs)이 있으면 그대로.
 const HOSE = ["nude", "black_sheer", "black_opaque", "black_fleece"];
 const shoeKind = (i) => { const s = i ? [i.subtype, i.subtype_en, i.name, i.name_en].filter(Boolean).join(" ") : ""; return /샌들|sandal|슬리퍼|slide|플립|flip/i.test(s) ? "open" : /뮬|mule|슬링백|sling/i.test(s) ? "mule" : "closed"; };
-const showsLeg = (o) => { const b = itemIn(o, "bottom"); return itemIn(o, "top")?.category === "dress" || (!!b && (!!b.skirt_type && b.skirt_type !== "none" || /스커트|치마|skirt/i.test([b.subtype, b.subtype_en, b.name].filter(Boolean).join(" ")))); };
+const isSkirt = (b) => !!b && ((!!b.skirt_type && b.skirt_type !== "none") || /스커트|치마|skirt/i.test([b.subtype, b.subtype_en, b.name].filter(Boolean).join(" ")));
+const showsLeg = (o) => itemIn(o, "top")?.category === "dress" || isSkirt(itemIn(o, "bottom"));
+const rgbOf = (i) => { const m = /^#?([0-9a-f]{6})$/i.exec(i?.color_hex || ""); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+const colorGap = (a, b) => { const x = rgbOf(a), y = rgbOf(b); return x && y ? Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) : 999; };
 const isDark = (i) => { const m = /^#?([0-9a-f]{6})$/i.exec(i?.color_hex || ""); if (!m) return false; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 < 0.3; };
 function legsOf(o) {
   if (itemIn(o, "acc_socks")) return "socks";
@@ -822,7 +825,12 @@ function fixAccessories(ids) {
   const get = (g) => acc.find((a) => slotOf(a) === g);
   const drop = (g) => { acc = acc.filter((a) => slotOf(a) !== g); };
   const interview = tpo === "special" && occ === "interview";
-  if (shoeKind(core.find((i) => slotOf(i) === "shoes")) !== "closed") drop("acc_socks");   // 샌들·뮬에는 양말 없음
+  const shoesIt = core.find((i) => slotOf(i) === "shoes"); const bottomIt = core.find((i) => rl.get(i.id) === "bottom");
+  if (shoeKind(shoesIt) !== "closed") drop("acc_socks");   // 샌들·뮬에는 양말 없음
+  else if (shoesIt && bottomIt && !isSkirt(bottomIt) && !get("acc_socks")) {               // 바지 + 막힌 신발이면 양말은 꼭 (바지 색에 가까운 것)
+    const sk = pool("acc_socks").sort((a, b) => colorGap(a, bottomIt) - colorGap(b, bottomIt))[0];
+    if (sk) acc.push(sk);
+  }
   const plainFirst = (l) => [...l].sort((a, b) => (a.pattern === "solid" ? 0 : 1) - (b.pattern === "solid" ? 0 : 1));
   if (bare) {                                   // 손목이 보이면 팔찌는 꼭
     const w = get("acc_wrist");
@@ -909,7 +917,7 @@ Occasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${wx}
 Each outfit = one top, one bottom, one shoes${needOuter() ? ", one outer (morning is under 17°C)" : ", outer only if useful"}. A dress (slot "top", category dress) replaces top+bottom: then include NO bottom.
 Items marked top|outer (cardigans) can be worn EITHER as the top OR thrown on over another top as the outer. When one is the outer, list it together with a separate top and do NOT add another outer. ${isCold() ? "It is cold, so a top|outer item may also go under a coat." : "NEVER combine a top|outer item with a blazer, jacket or coat today — such outfits are discarded."} Items in slot outer are never the only top.
 Optional: one bag, and accessories — at most one per group: acc_earring, acc_neck (necklace or scarf), acc_wrist (bracelet or ring), acc_socks${isCold() ? ", acc_gloves" : ""}. One eye-catching piece per outfit; match metal colors.
-Legs: with trousers pick socks as usual. With a skirt or dress, include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out — the app adds stockings or bare legs by temperature. Never socks with sandals or mules.
+Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes. With a skirt or dress, include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out — the app adds stockings or bare legs by temperature. Never socks with sandals or mules.
 ${weather && weather.rain >= 40 ? "Rain is likely: avoid suede, light canvas and sandals; prefer items marked 비OK; avoid floor-length hems." : ""}
 ${pin ? `MUST include item ${sid(pin)} (${pin.name}) in every outfit.` : ""}
 Priority: her own signals (saved outfits, swaps) > weather and occasion > the body and color rules. Rules only rank; they never forbid.
@@ -949,7 +957,12 @@ async function renderToday() {
   const body = $("td-body");
   if (!weather || weather.day !== targetDay()) await loadWeather();
   if (!items.length) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("emptyCloset")[0]}</b>${t("emptyCloset")[1]}</div>`; return bindHead(); }
-  if (!rec) { try { rec = JSON.parse(localStorage.getItem(recKey())); } catch {} if (rec && !(rec.outfits || []).some((o) => o && o.items.every(byId))) rec = null; }
+  if (!rec) {
+    try { rec = JSON.parse(localStorage.getItem(recKey())); } catch {}
+    if (rec && !(rec.outfits || []).some((o) => o && o.items.every(byId))) rec = null;
+    // 저장해 둔 추천에도 지금의 액세서리 규칙을 적용 (직접 바꾼 조합은 그대로)
+    if (rec) rec.outfits.forEach((o) => { if (o && !o.edited && o.items.every(byId)) o.items = fixAccessories(o.items); });
+  }
   if (!rec) {
     if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
     body.innerHTML = headHtml() + `<div class="empty"><b>${t("making")[0]}</b>${t("making")[1](candidates().length)}</div>`; bindHead();
@@ -1361,7 +1374,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.12</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.13</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
