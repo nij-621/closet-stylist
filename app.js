@@ -65,10 +65,10 @@ const T = {
       closet: "Closet check", partners: "Pairs with", noPartner: "None", similar: "Similar items", none: "None", savedFit: (n) => `Fits into your ${n} saved outfits`, reset: "Start a new check",
       empty: ["Start with a photo or measurements", "Four reasons it suits you, plus how it meshes with your closet."], foot: "90+ Strong buy · 80+ Buy · 70+ Conditional · 60+ Weak · under 60 Skip" },
   },
-  legsTitle: { ko: "다리", en: "Legs" }, legsSwap: { ko: "스타킹이나 다른 양말로 바꾸기", en: "Swap for stockings or other socks" },
+  legsTitle: { ko: "다리", en: "Legs" }, legsSwap: { ko: "스타킹이나 다른 양말로 바꾸기", en: "Swap for stockings or other socks" }, legsSwapT: { ko: "덧신이나 다른 양말로 바꾸기", en: "Swap for no-show or other socks" },
   legs: {
-    ko: { bare: ["맨살", "", "맨살", "bare legs"], nude: ["스타킹", "살색 · 비침", "살색 비치는 스타킹", "sheer nude stockings"], black_sheer: ["스타킹", "검정 · 비침", "검정 비치는 스타킹", "sheer black stockings"], black_opaque: ["스타킹", "검정 · 안 비침", "검정 안 비치는 스타킹", "opaque black tights"], black_fleece: ["스타킹", "검정 · 기모", "검정 기모 스타킹", "fleece-lined black tights"] },
-    en: { bare: ["Bare legs", "", "Bare legs", "bare legs"], nude: ["Stockings", "nude · sheer", "Sheer nude stockings", "sheer nude stockings"], black_sheer: ["Stockings", "black · sheer", "Sheer black stockings", "sheer black stockings"], black_opaque: ["Tights", "black · opaque", "Opaque black tights", "opaque black tights"], black_fleece: ["Tights", "black · fleece", "Fleece-lined black tights", "fleece-lined black tights"] },
+    ko: { bare: ["맨살", "", "맨살", "bare legs"], footie: ["덧신", "", "덧신 (안 보이는 양말)", "no-show socks, ankle bare"], nude: ["스타킹", "살색 · 비침", "살색 비치는 스타킹", "sheer nude stockings"], black_sheer: ["스타킹", "검정 · 비침", "검정 비치는 스타킹", "sheer black stockings"], black_opaque: ["스타킹", "검정 · 안 비침", "검정 안 비치는 스타킹", "opaque black tights"], black_fleece: ["스타킹", "검정 · 기모", "검정 기모 스타킹", "fleece-lined black tights"] },
+    en: { bare: ["Bare legs", "", "Bare legs", "bare legs"], footie: ["No-show socks", "", "No-show socks", "no-show socks, ankle bare"], nude: ["Stockings", "nude · sheer", "Sheer nude stockings", "sheer nude stockings"], black_sheer: ["Stockings", "black · sheer", "Sheer black stockings", "sheer black stockings"], black_opaque: ["Tights", "black · opaque", "Opaque black tights", "opaque black tights"], black_fleece: ["Tights", "black · fleece", "Fleece-lined black tights", "fleece-lined black tights"] },
   },
   change: { ko: "다른 옷으로 바꾸기", en: "Swap for another" }, pinMark: { ko: "고정", en: "pinned" },
   days: { ko: ["오늘", "내일"], en: ["Today", "Tomorrow"] }, edited: { ko: "직접 바꿈", en: "edited" },
@@ -799,13 +799,19 @@ const showsLeg = (o) => itemIn(o, "top")?.category === "dress" || isSkirt(itemIn
 const rgbOf = (i) => { const m = /^#?([0-9a-f]{6})$/i.exec(i?.color_hex || ""); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
 const colorGap = (a, b) => { const x = rgbOf(a), y = rgbOf(b); return x && y ? Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) : 999; };
 const isDark = (i) => { const m = /^#?([0-9a-f]{6})$/i.exec(i?.color_hex || ""); if (!m) return false; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 < 0.3; };
+// 덧신(신으면 안 보이는 양말)은 옷장에 등록하지 않고 종류만. 부츠가 아닌 막힌 신발에만.
+const lowShoe = (i) => !!i && shoeKind(i) === "closed" && !/부츠|boot|워커/i.test([i.subtype, i.subtype_en, i.name, i.name_en].filter(Boolean).join(" "));
+const ankleCut = (b) => !!b && !isSkirt(b) && (b.length === "crop" || (b.length_cm != null && b.length_cm <= 88));
+// 발목 길이 바지 + 로퍼·스니커즈 + 아침 17° 이상이면 양말 대신 덧신
+const footieAuto = (shoes, bottom) => lowShoe(shoes) && ankleCut(bottom) && !!weather && weather.am >= 17;
 function legsOf(o) {
   if (itemIn(o, "acc_socks")) return "socks";
-  if (!showsLeg(o)) return null;                                       // 바지: 양말 칸 그대로
-  if (o.legs) return o.legs;
   const shoes = itemIn(o, "shoes"); const am = weather ? weather.am : 16;
+  const pick = o.legs && o.legs !== "socks" && !(o.legs === "footie" && !lowShoe(shoes)) ? o.legs : null;
+  if (!showsLeg(o)) return pick === "footie" || footieAuto(shoes, itemIn(o, "bottom")) ? "footie" : null;   // 바지: 덧신 아니면 양말 칸 그대로
+  if (pick) return pick;
   if (shoeKind(shoes) === "open") return "bare";
-  if (am >= 20) return "bare";
+  if (am >= 20) return lowShoe(shoes) ? "footie" : "bare";
   if (am <= 4) return "black_fleece";
   if (am <= 11) return "black_opaque";
   if (tpo === "special" && occ === "interview") return "nude";
@@ -813,7 +819,7 @@ function legsOf(o) {
 }
 
 // 액세서리 규칙(룰북 §4)은 모델에 맡기지 않고 앱이 강제한다.
-function fixAccessories(ids) {
+function fixAccessories(ids, legs) {
   const its = [...new Set(ids)].map(byId).filter(Boolean);
   const core = its.filter((i) => !slotOf(i).startsWith("acc_"));
   let acc = its.filter((i) => slotOf(i).startsWith("acc_") && candidates().includes(i));
@@ -827,6 +833,8 @@ function fixAccessories(ids) {
   const interview = tpo === "special" && occ === "interview";
   const shoesIt = core.find((i) => slotOf(i) === "shoes"); const bottomIt = core.find((i) => rl.get(i.id) === "bottom");
   if (shoeKind(shoesIt) !== "closed") drop("acc_socks");   // 샌들·뮬에는 양말 없음
+  else if (legs && legs !== "socks") drop("acc_socks");    // 직접 고른 덧신·스타킹·맨살
+  else if (legs !== "socks" && footieAuto(shoesIt, bottomIt)) drop("acc_socks");   // 덧신 신는 날
   else if (shoesIt && bottomIt && !isSkirt(bottomIt) && !get("acc_socks")) {               // 바지 + 막힌 신발이면 양말은 꼭 (바지 색에 가까운 것)
     const sk = pool("acc_socks").sort((a, b) => colorGap(a, bottomIt) - colorGap(b, bottomIt))[0];
     if (sk) acc.push(sk);
@@ -884,6 +892,17 @@ HOW TO WRITE (very important — the client reads this tired, on a phone):
 - One idea per sentence. No jargon: never write body-type labels, ratios like 3:7, BEST, 완충, 톤온톤, 실루엣, 세로선. Say instead "다리가 길어 보여요", "얼굴에 잘 받아요", "어깨가 넓어 보여서 하체가 덜 도드라져요", "골드 귀걸이를 해요".
 - Tentative tone ("~해 보여요"). Never "예쁘다".
 - reason_en / tip_en: the same content in plain English.`;
+// 코디 이유·요령의 정확성 규칙 (2026-09-28, 사용자 승인) — 추천과 다시 평가에만 씀
+const OUTFIT_RULES = `
+ACCURACY OF THE REASON AND TIP (check every sentence against the items before you answer):
+- Credit an effect only to the item that really produces it. Shoulders look squarer because of a jacket's shoulder line or structure. A tie, a V-neck or a long necklace draws a line down the middle of the chest; it does nothing for the shoulders.
+- Write "다리가 길어 보여요" ONLY when this outfit has a concrete cause: a high waistline that stays visible (top tucked or cropped), bottom and shoes close in color, or shoes that continue the leg. Never write it when light or bulky shoes sit under dark trousers.
+- You cannot see her wearing it. Do not state warmth or comfort as fact; say which piece covers the morning temperature and, if the afternoon is much warmer, that it can come off.
+- Tip, in this order of priority:
+  1. If a piece near the face (top, upper part of a dress, scarf, an outer worn closed) is in a color her profile lists to avoid, the tip is how to soften it: gold earrings, a camel or oatmeal scarf, or an ivory layer inside. Prefer adding such a piece from the candidates to the outfit itself.
+  2. If the outer is long enough to cover the hip (length "long", or clearly longer than her best short-outer length), the tip is to wear it open so the waistline shows.
+  3. Otherwise any one styling action.
+  When both 1 and 2 apply, the tip may be two short sentences, one for each. Otherwise keep it to one.`;
 
 function candLine(i) {
   const d = (i.design_lines || []).filter((x) => x && x !== "none").join("/");
@@ -911,13 +930,14 @@ async function recommend({ pin = null, avoid = [] } = {}) {
   const wx = weather ? `${dayOff ? "Tomorrow" : "Today"} (${targetDay()}) in ${settings.home.name}: commute 07–09h ${weather.am}°C, return 17–19h ${weather.pm}°C, rain up to ${weather.rain}%.` : "Weather forecast unavailable.";
   const prompt = `${PROFILE}
 ${STYLE_RULES}
+${OUTFIT_RULES}
 
 You are the client's personal stylist. Build outfits ONLY from the candidate list (use the id in the first column exactly).
 Occasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${wx}
 Each outfit = one top, one bottom, one shoes${needOuter() ? ", one outer (morning is under 17°C)" : ", outer only if useful"}. A dress (slot "top", category dress) replaces top+bottom: then include NO bottom.
 Items marked top|outer (cardigans) can be worn EITHER as the top OR thrown on over another top as the outer. When one is the outer, list it together with a separate top and do NOT add another outer. ${isCold() ? "It is cold, so a top|outer item may also go under a coat." : "NEVER combine a top|outer item with a blazer, jacket or coat today — such outfits are discarded."} Items in slot outer are never the only top.
 Optional: one bag, and accessories — at most one per group: acc_earring, acc_neck (necklace or scarf), acc_wrist (bracelet or ring), acc_socks${isCold() ? ", acc_gloves" : ""}. One eye-catching piece per outfit; match metal colors.
-Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes. With a skirt or dress, include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out — the app adds stockings or bare legs by temperature. Never socks with sandals or mules.
+Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes${weather && weather.am >= 17 ? " — except ankle-length trousers with loafers or sneakers, where she wears no-show socks: leave socks out" : ""}. With a skirt or dress, include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out — the app adds stockings, no-show socks or bare legs by temperature. Never socks with sandals or mules.
 ${weather && weather.rain >= 40 ? "Rain is likely: avoid suede, light canvas and sandals; prefer items marked 비OK; avoid floor-length hems." : ""}
 ${pin ? `MUST include item ${sid(pin)} (${pin.name}) in every outfit.` : ""}
 Priority: her own signals (saved outfits, swaps) > weather and occasion > the body and color rules. Rules only rank; they never forbid.
@@ -1083,15 +1103,27 @@ function openItemSheet(s, it) {
   const on = (k, fn) => { const b = $("modal").querySelector(`[data-sh="${k}"]`); if (b) b.onclick = () => { closeModal(); fn(); }; };
   on("swap", () => pickExtra(s)); on("pin", () => togglePin(it.id)); on("pause", () => pauseFromToday(it));
   on("off", () => { const main = rec.outfits[rec.main]; main.items = main.items.filter((id) => id !== it.id); main.edited = true; persistRec(); drawRec(); });
-  if (s === "acc_socks" && showsLeg(rec.outfits[rec.main])) { const b = $("modal").querySelector('[data-sh="swap"]'); b.textContent = t("legsSwap"); b.onclick = () => { closeModal(); pickLegs(); }; }
+  if (s === "acc_socks") { const b = $("modal").querySelector('[data-sh="swap"]'); b.textContent = t(showsLeg(rec.outfits[rec.main]) ? "legsSwap" : "legsSwapT"); b.onclick = () => { closeModal(); pickLegs(); }; }
 }
-const swapIdx = {};
+// 밀어서 나오는 순서 = 어울리는 순: 처음 추천된 옷 → 다른 안(변주·도전)에 나온 옷 → 처음 옷과 색이 가까운 순.
+// 순서는 그 칸에서 처음 밀 때 한 번 정해 두고(main.swipe), 왼쪽으로 밀면 다음, 오른쪽으로 밀면 이전.
+function swipeOrder(main, s, cur) {
+  const saved = main.swipe?.[s];
+  if (saved && (!cur || saved.includes(cur.id))) return saved;
+  const alt = new Set(rec.outfits.filter((o) => o && o !== main).map((o) => itemIn(o, s)?.id).filter(Boolean));
+  const rest = pool(s, cur?.id).map((x, n) => ({ x, n })).sort((a, b) => (alt.has(b.x.id) - alt.has(a.x.id)) || (colorGap(a.x, cur) - colorGap(b.x, cur)) || (a.n - b.n));
+  const order = [...(cur ? [cur.id] : []), ...rest.map((r) => r.x.id)];
+  main.swipe = { ...main.swipe, [s]: order };
+  return order;
+}
 function swap(s, dir) {
   const main = rec.outfits[rec.main]; const cur = itemIn(main, s);
   if (cur && cur.id === rec.pin) { drawRec(); return toast(t("swapPin")); }
-  const pl = pool(s, cur?.id).filter((x) => !main.items.includes(x.id)); if (!pl.length) { drawRec(); return toast(t("noSwap")); }
-  const i = ((swapIdx[s] || 0) + (dir > 0 ? 0 : -1) + pl.length * 2) % pl.length; swapIdx[s] = dir > 0 ? i + 1 : i;
-  swapTo(s, pl[i]);
+  const ok = new Set(pool(s, cur?.id).filter((x) => !main.items.includes(x.id)).map((x) => x.id));
+  const order = swipeOrder(main, s, cur).filter((id) => ok.has(id) || id === cur?.id);
+  if (!ok.size) { drawRec(); return toast(t("noSwap")); }
+  const at = cur ? order.indexOf(cur.id) : -1;
+  swapTo(s, byId(order[(at + (dir > 0 ? 1 : -1) + order.length * 2) % order.length]));
 }
 async function swapTo(s, next) {
   if (!next) return toast(t("noSwap"));
@@ -1101,7 +1133,7 @@ async function swapTo(s, next) {
   else if (s === "top" && !ids.some((id) => slotOf(byId(id)) === "bottom")) { const b = pool("bottom")[0]; if (b) ids.push(b.id); }
   // 상의였던 "둘 다" 옷이 겉옷 자리로 가서 상의가 비면 상의를 채움
   if (!ids.some((id) => slotIn(ids, byId(id)) === "top")) { const tp = pool("top").find((x) => !ids.includes(x.id) && !isFlex(x)); if (tp) ids.push(tp.id); }
-  main.items = CORE.includes(s) ? fixAccessories(ids) : ids;
+  main.items = CORE.includes(s) ? fixAccessories(ids, main.legs) : ids;
   main.edited = true; main.tag = { ko: `${prev ? prev.name : t("none")} → ${next.name}`, en: `${prev ? nameOfEn(prev) : "None"} → ${nameOfEn(next)}` };
   if (!CORE.includes(s)) { persistRec(); return drawRec(); }        // 가방·액세서리는 다시 평가하지 않음
   main.score = null; main.reason = { ko: t("rescoring"), en: "Re-scoring…" }; main.tip = { ko: "", en: "" };
@@ -1110,7 +1142,7 @@ async function swapTo(s, next) {
   const key = comboKey(main.items);
   try {
     const its = main.items.map(byId).filter(Boolean);
-    const r = await askStylist("score", { items: its }, `${PROFILE}\n${STYLE_RULES}\nOccasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}\nLegs: ${legsOf(main) && legsOf(main) !== "socks" ? t("legs")[legsOf(main)][3] : "socks or trousers"}. Score this outfit she put together herself. Items:\n${its.map(candLine).join("\n")}\nReturn JSON {"score":0-100,"top":44-56,"reason_ko":"","reason_en":"","tip_ko":"","tip_en":""}`);
+    const r = await askStylist("score", { items: its }, `${PROFILE}\n${STYLE_RULES}\n${OUTFIT_RULES}\nOccasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}\nLegs: ${legsOf(main) && legsOf(main) !== "socks" ? t("legs")[legsOf(main)][3] : "socks or trousers"}. Score this outfit she put together herself. Items:\n${its.map(candLine).join("\n")}\nReturn JSON {"score":0-100,"top":44-56,"reason_ko":"","reason_en":"","tip_ko":"","tip_en":""}`);
     if (comboKey(main.items) !== key) return;
     Object.assign(main, { score: Number(r.score) || null, top: Math.min(60, Math.max(40, Number(r.top) || 50)), reason: { ko: r.reason_ko || "", en: r.reason_en || "" }, tip: { ko: r.tip_ko || "", en: r.tip_en || "" } });
   } catch (e) { main.reason = { ko: t("rescoreFail"), en: "Couldn't re-score." }; }
@@ -1119,10 +1151,12 @@ async function swapTo(s, next) {
 const nameOfEn = (i) => i.name_en || i.name;
 function pickLegs() {
   const main = rec.outfits[rec.main]; const cur = legsOf(main); const L = t("legs");
-  const socks = shoeKind(itemIn(main, "shoes")) === "closed" ? pool("acc_socks") : [];
-  openModal(`<h2>${t("legsTitle")}</h2><div class="list">${["bare", ...HOSE].map((k) => `<button data-legs-k="${k}" class="${cur === k ? "on" : ""}"><span class="ph lg-${k}"></span><span>${L[k][2]}</span>${cur === k ? icon("i-check", "i s b") : ""}</button>`).join("")}${socks.map((i) => `<button data-id="${i.id}"><img src="${esc(thumbOf(i))}" alt="" loading="lazy"><span>${esc(nameOf(i))}</span></button>`).join("")}</div>`);
-  $("modal").querySelectorAll("[data-legs-k]").forEach((b) => (b.onclick = () => { closeModal(); main.legs = b.dataset.legsK; main.edited = true; persistRec(); drawRec(); }));
-  $("modal").querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => { closeModal(); delete main.legs; swapTo("acc_socks", byId(b.dataset.id)); }));
+  const shoes = itemIn(main, "shoes"); const socks = shoeKind(shoes) === "closed" ? pool("acc_socks") : [];
+  const foot = lowShoe(shoes) ? ["footie"] : [];
+  const kinds = showsLeg(main) ? ["bare", ...foot, ...HOSE] : foot;          // 바지: 덧신 또는 양말
+  openModal(`<h2>${t("legsTitle")}</h2><div class="list">${kinds.map((k) => `<button data-legs-k="${k}" class="${cur === k ? "on" : ""}"><span class="ph lg-${k}"></span><span>${L[k][2]}</span>${cur === k ? icon("i-check", "i s b") : ""}</button>`).join("")}${socks.map((i) => `<button data-id="${i.id}"><img src="${esc(thumbOf(i))}" alt="" loading="lazy"><span>${esc(nameOf(i))}</span></button>`).join("")}</div>`);
+  $("modal").querySelectorAll("[data-legs-k]").forEach((b) => (b.onclick = () => { closeModal(); main.legs = b.dataset.legsK; main.items = main.items.filter((id) => slotOf(byId(id)) !== "acc_socks"); main.edited = true; persistRec(); drawRec(); }));
+  $("modal").querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => { closeModal(); main.legs = "socks"; swapTo("acc_socks", byId(b.dataset.id)); }));
 }
 function pickExtra(s) {
   const main = rec.outfits[rec.main]; const cur = itemIn(main, s); const pl = pool(s);
@@ -1166,7 +1200,7 @@ async function pauseFromToday(it) {
     if (!o || !o.items.includes(it.id)) return o;
     const s = slotOf(it); const alt = pool(s).find((x) => !o.items.includes(x.id));
     const ids = o.items.filter((id) => id !== it.id);
-    if (alt) return { ...o, items: fixAccessories([...ids, alt.id]) };
+    if (alt) return { ...o, items: fixAccessories([...ids, alt.id], o.legs) };
     return CORE.includes(s) && s !== "outer" ? null : { ...o, items: ids };
   });
   if (rec.pin === it.id) rec.pin = null;
@@ -1374,7 +1408,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.14</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.15</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
