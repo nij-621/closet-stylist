@@ -403,6 +403,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .alts h4 { font-size: 13px; font-weight: 500; color: var(--ink2); }
 .alt .th img { object-fit: contain; background: var(--well); }
 .tr { justify-content: space-between; gap: 8px; margin-top: 4px; }
+/* 입기로 한 상태: 다시 누르면 취소되므로 꺼진 버튼처럼 보이지 않게 */
+.acts .btn.pri.big.done { background: var(--well); color: var(--ink); border: 1px solid var(--line); }
+/* 후기까지 쓴 기록은 잠김: 예전의 흐린 버튼 */
+.acts .btn.pri.big.done:disabled { background: var(--espresso); color: var(--on); border: 0; opacity: .35; }
 /* 착용 후기 */
 .rv { width: 100%; min-height: 44px; margin-top: 8px; padding: 4px 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; font-size: 14px; color: var(--ink2); border-bottom: 1px solid var(--line); }
 .rv span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rv b { color: var(--ink); font-weight: 600; }
