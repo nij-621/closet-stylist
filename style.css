@@ -403,6 +403,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .alts h4 { font-size: 13px; font-weight: 500; color: var(--ink2); }
 .alt .th img { object-fit: contain; background: var(--well); }
 .tr { justify-content: space-between; gap: 8px; margin-top: 4px; }
+/* 착용 후기 */
+.rv { width: 100%; min-height: 44px; margin-top: 8px; padding: 4px 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; font-size: 14px; color: var(--ink2); border-bottom: 1px solid var(--line); }
+.rv span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rv b { color: var(--ink); font-weight: 600; }
+.rv em { flex: none; font-style: normal; font-weight: 600; font-size: 13px; color: var(--camel); }
+.rv-th { display: flex; gap: 4px; margin: 12px 0; }
+.rv-th img { width: 64px; height: 64px; object-fit: contain; border-radius: 8px; background: var(--well); }
+.field textarea { display: block; width: 100%; margin-top: 6px; padding: 11px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--paper); font-size: 16px; line-height: 1.5; resize: none; }
+#rv-save { width: 100%; margin-top: 14px; }
 .tr .btn.txt { font-size: 13px; padding: 0; }
 /* 사진을 눌렀을 때 */
 #modal.sheet .sheet-ph { margin: 0 -18px; margin-top: -14px; background: var(--well); border-radius: 18px 18px 0 0; overflow: hidden; flex: none; }

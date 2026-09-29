@@ -82,6 +82,11 @@ const T = {
   swapPin: { ko: "고정한 옷이에요. 고정을 먼저 풀어 주세요.", en: "This one is pinned. Unpin it first." }, noSwap: { ko: "바꿀 옷이 없어요", en: "Nothing to swap in" },
   rescoring: { ko: "다시 살펴보는 중…", en: "Re-scoring…" }, rescoreFail: { ko: "다시 살펴보지 못했어요. 조합은 그대로 입을 수 있어요.", en: "Couldn't re-score." },
   redoing: { ko: "다른 조합을 짜는 중", en: "Finding other options" }, redone: { ko: "새 조합이에요", en: "New options" },
+  noNew: { ko: "요 며칠 입은 것과 다른 조합을 찾지 못했어요. 잠시 뒤 다시 시도해 주세요.", en: "Couldn't find an outfit different from the last few days. Try again shortly." },
+  rv: {
+    ko: { title: "입어 보니 어땠어요?", ask: (d) => `${d} 코디, 어땠어요?`, write: "후기 쓰기", edit: "고치기", good: "좋았어요", ok: "그저 그랬어요", bad: "별로였어요", memo: "한 줄 메모", memoOpt: "안 써도 돼요", memoPh: "예: 오후에 더웠어요. 신발이 불편했어요.", pick: "어땠는지 하나 골라 주세요", save: "후기 저장", saved: "후기를 저장했어요", savedBad: "후기를 저장했어요. 이 조합은 다시 추천하지 않아요", log: "입은 기록", none: "아직 입은 기록이 없어요. '이렇게 입을게요'를 누르면 여기에 쌓여요.", noReview: "후기 없음", loadFail: "입은 기록을 불러오지 못했어요" },
+    en: { title: "How did it go?", ask: (d) => `How was the ${d} outfit?`, write: "Add a note", edit: "Edit", good: "Liked it", ok: "So-so", bad: "Didn't like it", memo: "Short note", memoOpt: "optional", memoPh: "e.g. Too warm in the afternoon. Shoes hurt.", pick: "Pick one first", save: "Save", saved: "Saved", savedBad: "Saved. This outfit won't be suggested again", log: "Worn log", none: "Nothing logged yet. Outfits you choose to wear show up here.", noReview: "No note", loadFail: "Couldn't load the log" },
+  },
   wearToast: { ko: "오늘 입음으로 기록했어요", en: "Logged as worn today" }, banToast: { ko: "이 조합은 다시 추천하지 않아요", en: "Won't suggest this again" },
   making: { ko: ["오늘 코디 준비 중", (n) => `옷 ${n}개로 조합을 짜고 있어요.`], en: ["Getting today ready", (n) => `Building from ${n} items.`] },
   cant: { ko: "아직 추천할 수 없어요", en: "Can't suggest yet" }, retry: { ko: "다시 시도", en: "Try again" }, allGone: { ko: "오늘 추천을 모두 뺐어요", en: "All picks dismissed" },
@@ -768,7 +773,8 @@ const isCold = () => !!weather && weather.am <= 8;
 let dayOff = new Date().getHours() >= 20 ? 1 : 0;
 const targetDate = () => { const d = new Date(); d.setDate(d.getDate() + dayOff); return d; };
 const targetDay = () => targetDate().toLocaleDateString("sv-SE");
-const recKey = () => `stylist.rec.${targetDay()}.${tpo}${tpo === "special" ? "." + occ : ""}`;
+const recKeyOf = (day) => `stylist.rec.${day}.${tpo}${tpo === "special" ? "." + occ : ""}`;
+const recKey = () => recKeyOf(targetDay());
 
 function candidates() {
   return items.filter((i) => {
@@ -877,6 +883,18 @@ function validOutfit(o) {
   return true;
 }
 const coreDiff = (a, b) => CORE.filter((s) => (itemIn(a, s)?.id || null) !== (itemIn(b, s)?.id || null));
+// 반복 금지: 앞뒤 5일 안에 "입을게요"로 기록한 조합과는 아우터·상의·하의·신발 중 2칸 이상 달라야 한다.
+// "입을게요"를 누르지 않은 추천은 입지 않은 것으로 본다.
+const REPEAT_DAYS = 5;
+const tooClose = (o, ids) => coreDiff(o, { items: ids }).length < 2;
+function takenNear(logRows) {
+  const T = targetDay(); const near = (day) => day !== T && Math.abs(new Date(day) - new Date(T)) / 864e5 <= REPEAT_DAYS;
+  const out = (logRows || []).filter((r) => near(r.worn_on)).map((r) => r.items || []);
+  // 방금 누른 "입을게요"는 5초 뒤에 기록되므로, 그 사이에는 표시해 둔 값을 쓴다
+  const [day, ...ids] = String(settings.get().worn || "").split("|");
+  if (day && ids.length && near(day)) out.push(ids);
+  return out.filter((ids) => ids.some(byId));
+}
 
 const TPO_EN = { work: "office day (relaxed dress code; Operations role, mostly seated)", out: "weekend outing", special: "special occasion" };
 const OCC_EN = {
@@ -919,16 +937,22 @@ async function recommend({ pin = null, avoid = [] } = {}) {
   if (lack.length) return { error: t("lack")(lack.map((s) => t("slot")[s]).join("·")) };
   if (!PROFILE) await loadProfile();
   if (!PROFILE) return { error: t("noProfile") };
-  const [{ data: recentWear }, { data: banned }, { data: saved }] = await Promise.all([
+  const [{ data: recentWear }, { data: banned }, { data: saved }, { data: rated }] = await Promise.all([
     sb.from("wear_log").select("items, worn_on").gte("worn_on", new Date(Date.now() - 14 * 864e5).toLocaleDateString("sv-SE")),
     sb.from("outfits").select("items").eq("banned", true),
     sb.from("outfits").select("items").eq("saved", true),
+    sb.from("wear_log").select("*").not("rating", "is", null).order("worn_on", { ascending: false }).limit(40),   // 후기 칸이 아직 없으면 빈 값
   ]);
+  const reviews = (rated || []).filter((r) => r.rating);
   const short = (rows) => (rows || []).map((r) => (r.items || []).map((x) => { const it = byId(x); return it ? sid(it) : null; }).filter(Boolean));
   const known = new Set([...(recentWear || []), ...(saved || [])].map((r) => comboKey(r.items || [])));
-  const bannedKeys = new Set((banned || []).map((r) => comboKey(r.items || [])));
-  const wx = weather ? `${dayOff ? "Tomorrow" : "Today"} (${targetDay()}) in ${settings.home.name}: commute 07–09h ${weather.am}°C, return 17–19h ${weather.pm}°C, rain up to ${weather.rain}%.` : "Weather forecast unavailable.";
-  const prompt = `${PROFILE}
+  const bannedKeys = new Set([...(banned || []), ...reviews.filter((r) => r.rating === "bad")].map((r) => comboKey(r.items || [])));
+  const taken =[...takenNear(recentWear), ...avoid];
+  const takenKeys = new Set(taken.map(comboKey));
+  const coreSids = (ids) => ids.map(byId).filter((i) => i && CORE.includes(slotOf(i))).map(sid);
+  const taste = (saved || []).filter((r) => !takenKeys.has(comboKey(r.items || [])));
+  const wx =weather ? `${dayOff ? "Tomorrow" : "Today"} (${targetDay()}) in ${settings.home.name}: commute 07–09h ${weather.am}°C, return 17–19h ${weather.pm}°C, rain up to ${weather.rain}%.` : "Weather forecast unavailable.";
+  const ask = (no) => askStylist("recommend", { cand, pin, avoid: no.map(coreSids), tpo, occ, needOuter: needOuter(), sid, slotOf }, `${PROFILE}
 ${STYLE_RULES}
 ${OUTFIT_RULES}
 
@@ -941,9 +965,10 @@ Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suit
 ${weather && weather.rain >= 40 ? "Rain is likely: avoid suede, light canvas and sandals; prefer items marked 비OK; avoid floor-length hems." : ""}
 ${pin ? `MUST include item ${sid(pin)} (${pin.name}) in every outfit.` : ""}
 Priority: her own signals (saved outfits, swaps) > weather and occasion > the body and color rules. Rules only rank; they never forbid.
-Saved / recently worn combinations (the "safe" card should follow what she already wears): ${JSON.stringify(short([...(saved || []), ...(recentWear || [])]).slice(0, 30))}.
+Saved combinations (her taste: the "safe" card follows this style, but is a fresh outfit, not a copy): ${JSON.stringify(short(taste).slice(0, 30))}.
 Never output these banned combinations: ${JSON.stringify(short(banned))}.
-${avoid.length ? `She asked for different options. Do NOT repeat these: ${JSON.stringify(avoid)}.` : ""}
+${reviews.length ? `Her own reviews after wearing — the strongest signal, notes are in Korean. "bad": never return that combination and avoid what the note complains about. "good": build on what worked. ${JSON.stringify(reviews.map((r) => ({ items: coreSids(r.items || []), rating: r.rating, note: r.note ? String(r.note).slice(0, 200) : undefined })))}.` : ""}
+${no.length ? `She does not repeat outfits within a week. These were worn, planned or just shown. EVERY outfit you return must differ from EACH of them in at least TWO of outer/top/bottom/shoes: ${JSON.stringify(no.map(coreSids))}.` : ""}
 
 Return JSON only:
 {"outfits":[
@@ -955,27 +980,34 @@ safe = her proven formula. vary = the safe outfit with EXACTLY ONE of outer/top/
 score = structure 60 (length, proportion, shoulder, hip balance, collar) + color near the face 20 + occasion and weather 20. Similar outfits must score within ±3. top = estimated upper-body share of visual weight in % (50 is the target).
 
 Candidates (id | slot | name | type | color(tone) | pattern | length | ... | how she wears it):
-${cand.map(candLine).join("\n")}`;
-  const out = await askStylist("recommend", { cand, pin, avoid, tpo, occ, needOuter: needOuter(), sid, slotOf }, prompt);
+${cand.map(candLine).join("\n")}`);
   const bySid = new Map(cand.map((i) => [sid(i), i.id]));
   const norm = (o) => o && ({ kind: o.kind, score: Number(o.score) || null, top: Math.min(60, Math.max(40, Number(o.top ?? o.gauge_top) || 50)),
     reason: { ko: o.reason_ko || o.reason || "", en: o.reason_en || "" }, tip: { ko: o.tip_ko || "", en: o.tip_en || "" },
     items: [...new Set((o.items || []).map((s) => bySid.get(String(s).trim())).filter(Boolean))] });
   rec = { outfits: [], main: 0, pin: pin?.id || null };               // validOutfit이 핀을 보도록 먼저 둠
-  let list = (out.outfits || []).map(norm).map((o) => o && { ...o, items: fixAccessories(o.items) }).map((o) => (o && validOutfit(o) && !bannedKeys.has(comboKey(o.items)) ? o : null));
+  // 모델이 반복 금지를 어기면 앱이 버리고, 버린 조합을 알려 주며 한 번 더 묻는다.
+  let list = [], repeated = [];
+  for (let n = 0; n < 2 && !list.some(Boolean); n++) {
+    const out = await ask([...taken, ...repeated]);
+    const ok = (out.outfits || []).map(norm).map((o) => o && { ...o, items: fixAccessories(o.items) }).map((o) => (o && validOutfit(o) && !bannedKeys.has(comboKey(o.items)) ? o : null));
+    list = ok.map((o) => (o && !taken.some((ids) => tooClose(o, ids)) ? o : null));
+    repeated = ok.filter((o, i) => o && !list[i]).map((o) => o.items);
+  }
   const safe = list.find((o) => o && o.kind === "safe") || list.find(Boolean);
-  if (!safe) return { error: t("noCombo") };
+  if (!safe) return { error: t(repeated.length ? "noNew" : "noCombo") };
   safe.kind = "safe";
   // 변주 = 안전과 정확히 1칸 차이, 도전 = 2칸 이상 + 해 본 적 없는 조합. 어기면 그 카드는 비움.
   const vary = list.find((o) => o && o !== safe && coreDiff(o, safe).length === 1) || null;
   const dare = list.find((o) => o && o !== safe && o !== vary && coreDiff(o, safe).length >= 2 && !known.has(comboKey(o.items))) || null;
   if (vary) vary.kind = "vary"; if (dare) dare.kind = "dare";
-  return { outfits: [safe, vary, dare], main: 0, pin: pin?.id || null, made: Date.now() };
+  return { outfits: [safe, vary, dare], main: 0, pin: pin?.id || null, avoid, made: Date.now() };
 }
 
 async function renderToday() {
   const body = $("td-body");
   if (!weather || weather.day !== targetDay()) await loadWeather();
+  await loadWears();
   if (!items.length) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("emptyCloset")[0]}</b>${t("emptyCloset")[1]}</div>`; return bindHead(); }
   if (!rec) {
     try { rec = JSON.parse(localStorage.getItem(recKey())); } catch {}
@@ -995,6 +1027,48 @@ async function renderToday() {
   drawRec();
 }
 function persistRec() { localStorage.setItem(recKey(), JSON.stringify(rec)); }
+
+// 착용 후기: 입은 날부터 쓸 수 있고, 오늘 화면의 입기 버튼 아래와 "입은 기록"에서 보고 고친다.
+let wears = [];
+const RV = (k) => t("rv")[k];
+const dayLabel = (s) => { const d = new Date(s + "T12:00:00"); return lang === "en" ? d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : `${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}요일`; };
+const coreOf = (ids) => (ids || []).map(byId).filter((i) => i && CORE.includes(slotOf(i)));
+async function loadWears() {
+  const { data } = await sb.from("wear_log").select("*").gte("worn_on", new Date(Date.now() - 14 * 864e5).toLocaleDateString("sv-SE")).order("worn_on", { ascending: false });
+  wears = data || [];
+}
+// 오늘 입은 코디는 항상, 지난 사흘은 후기가 없을 때만 물어본다. 내일 입기로 한 코디는 아직 묻지 않는다.
+function reviewLines() {
+  const today = todayStr();
+  const rows = wears.filter((r) => r.worn_on === today || (r.worn_on < today && !r.rating && (new Date(today) - new Date(r.worn_on)) / 864e5 <= 3));
+  return rows.map((r) => `<button class="rv" data-rv="${r.id}"><span>${r.rating ? `<b>${RV(r.rating)}</b>${r.note ? " · " + esc(r.note) : ""}` : RV("ask")(dayLabel(r.worn_on))}</span><em>${r.rating ? RV("edit") : RV("write")}</em></button>`).join("");
+}
+function openWearReview(row, after) {
+  let rating = row.rating || null;
+  openModal(`<h2>${RV("title")}</h2><p class="muted small">${dayLabel(row.worn_on)}</p>
+    <div class="rv-th">${coreOf(row.items).map((i) => `<img src="${esc(thumbOf(i))}" alt="${esc(nameOf(i))}">`).join("")}</div>
+    <div class="chips" id="rv-rate">${["good", "ok", "bad"].map((k) => `<button type="button" class="chip ${rating === k ? "on" : ""}" data-r="${k}">${RV(k)}</button>`).join("")}</div>
+    <label class="field">${RV("memo")} <span class="muted">${RV("memoOpt")}</span><textarea id="rv-note" rows="3" maxlength="300" placeholder="${esc(RV("memoPh"))}">${esc(row.note || "")}</textarea></label>
+    <button class="btn pri big" id="rv-save">${RV("save")}</button>`);
+  $("rv-rate").querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => { rating = b.dataset.r; $("rv-rate").querySelectorAll("[data-r]").forEach((x) => x.classList.toggle("on", x === b)); }));
+  $("rv-save").onclick = async () => {
+    if (!rating) return toast(RV("pick"));
+    const patch = { rating, note: $("rv-note").value.trim() || null, reviewed_at: new Date().toISOString() };
+    $("rv-save").disabled = true;
+    const { error } = await sb.from("wear_log").update(patch).eq("id", row.id);
+    if (error) { $("rv-save").disabled = false; return toast(t("saveFail") + error.message, 4000); }
+    Object.assign(row, patch); const mine = wears.find((w) => w.id === row.id); if (mine) Object.assign(mine, patch);
+    closeModal(); toast(RV(rating === "bad" ? "savedBad" : "saved"));
+    if (after) after(); else if (!$("tab-today").hidden && rec) drawRec();
+  };
+}
+async function openWearLog() {
+  const { data, error } = await sb.from("wear_log").select("*").order("worn_on", { ascending: false }).limit(60);
+  if (error) return toast(RV("loadFail"));
+  const rows = (data || []).filter((r) => r.worn_on <= todayStr());
+  openModal(`<h2>${RV("log")}</h2>${rows.length ? `<div class="wl">${rows.map((r) => `<button class="alt" data-w="${r.id}"><div class="th">${coreOf(r.items).slice(0, 3).map((i) => `<img src="${esc(thumbOf(i))}" alt="">`).join("")}</div><div class="tx"><b>${dayLabel(r.worn_on)}${r.rating ? " · " + RV(r.rating) : ""}</b><span>${r.note ? esc(r.note) : r.rating ? coreOf(r.items).map((i) => esc(nameOf(i))).join(" · ") : RV("noReview") + " · " + RV("write")}</span></div>${icon("i-chev", "i s go")}</button>`).join("")}</div>` : `<p class="muted small" style="padding:16px 0">${RV("none")}</p>`}`);
+  $("modal").querySelectorAll("[data-w]").forEach((b) => (b.onclick = () => openWearReview(rows.find((r) => String(r.id) === b.dataset.w), () => { if (!$("tab-today").hidden && rec) drawRec(); openWearLog(); })));
+}
 function headHtml() {
   const d = targetDate();
   const date = lang === "en" ? d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : `<b>${d.getMonth() + 1}</b>월 <b>${d.getDate()}</b>일 ${"일월화수목금토"[d.getDay()]}요일`;
@@ -1053,6 +1127,7 @@ function drawRec() {
     <div class="stage"><div class="stack" id="stack">${cells(main)}</div></div>
     ${extrasHtml(main)}
     <div class="acts"><button class="btn pri big" id="td-wear" ${wornKey ? "disabled" : ""}>${icon("i-check", "i s b")}${wornKey ? t("worn") : t("wear")}</button></div>
+    ${reviewLines()}
     ${main.edited && main.tag ? `<div class="meta"><span>${t("edited")} · ${esc(LX(main.tag))}</span></div>` : ""}
     <div class="why">${esc(LX(main.reason))}</div>
     ${LX(main.tip) ? `<div class="why tipline">${esc(LX(main.tip))}</div>` : ""}
@@ -1062,7 +1137,7 @@ function drawRec() {
       const what = d.length >= 3 ? t("diffN")(d.length) : d.length ? t("diff")(d.map((s) => t("slot")[s]).join("·")) : t("diffAcc");
       return `<button class="alt" data-alt="${i}"><div class="th">${(its.length ? its : [itemIn(o, "top")]).map((x) => `<img src="${esc(thumbOf(x))}" alt="">`).join("")}</div><div class="tx"><b>${K[o.kind] || K.safe}${o.edited ? " · " + t("edited") : ""} · ${what}</b><span>${its.slice(0, 2).map((x) => esc(nameOf(x))).join(" · ")}${its.length > 2 ? " …" : ""}</span></div>${icon("i-chev", "i s go")}</button>`;
     }).join("")}</div>
-    <div class="tr"><button class="btn txt" id="td-redo">${t("redo")}</button><button class="btn txt" id="td-ban">${t("ban")}</button></div>
+    <div class="tr"><button class="btn txt" id="td-redo">${t("redo")}</button><button class="btn txt" id="td-ban">${t("ban")}</button><button class="btn txt" id="td-log">${RV("log")}</button></div>
     ${lackShoes ? `<div class="gap"><b>${t("gap")[0]}</b><br>${t("gap")[1]}<br><button id="td-buy">${t("gap")[2]} ${icon("i-chev", "i xs")}</button></div>` : ""}`;
   bindHead();
   body.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => { rec.main = Number(b.dataset.alt); persistRec(); drawRec(); window.scrollTo(0, 0); }));
@@ -1071,7 +1146,8 @@ function drawRec() {
   body.querySelectorAll("[data-legs]").forEach((b) => (b.onclick = () => pickLegs()));
   body.querySelectorAll("[data-add]").forEach((b) => (b.onclick = () => swapTo(b.dataset.add, pool(b.dataset.add)[0])));
   body.querySelectorAll("[data-xslot]").forEach((b) => (b.onclick = () => (b.dataset.id ? openItemSheet(b.dataset.xslot, byId(b.dataset.id)) : pickExtra(b.dataset.xslot))));
-  $("td-wear").onclick = wearMain; $("td-ban").onclick = banMain; $("td-redo").onclick = redo;
+  $("td-wear").onclick = wearMain; $("td-ban").onclick = banMain; $("td-redo").onclick = redo; $("td-log").onclick = openWearLog;
+  body.querySelectorAll("[data-rv]").forEach((b) => (b.onclick = () => openWearReview(wears.find((w) => String(w.id) === b.dataset.rv))));
   const tb = $("td-buy"); if (tb) tb.onclick = () => showTab("judge");
 }
 
@@ -1173,7 +1249,7 @@ async function regen(opts, waitMsg) {
   const want = recKey(); const old = rec;
   let r; try { r = await recommend(opts); } catch (e) { r = { error: e.message }; }
   if (want !== recKey()) return false;
-  if (r.error) { rec = old; toast(r.error, 4000); if (rec) drawRec(); else renderToday(); return false; }
+  if (r.error) { rec = old; toast(r.error, 4000); if (rec) { persistRec(); drawRec(); } else renderToday(); return false; }
   rec = r; persistRec(); drawRec(); return true;
 }
 async function togglePin(id) {
@@ -1184,7 +1260,7 @@ async function togglePin(id) {
 }
 async function redo() {
   // "다른 조합"은 차단 목록을 지우지 않는다. 지금 보던 조합만 피해서 다시 짠다.
-  const avoid = (rec?.outfits || []).filter(Boolean).map((o) => o.items.map(byId).filter((i) => i && CORE.includes(slotOf(i))).map(sid));
+  const avoid = [...(rec?.avoid || []), ...(rec?.outfits || []).filter(Boolean).map((o) => o.items)];   // 오늘 이미 본 조합은 계속 쌓임
   const pin = rec?.pin ? byId(rec.pin) : null;
   localStorage.removeItem(recKey());
   if (!rec) return renderToday();
@@ -1221,6 +1297,7 @@ function wearMain() {
     await sb.from("wear_log").insert({ owner: me.id, worn_on: day, outfit_id: o?.id ?? null, items: ids, source: "recommendation" });
     await sb.from("items").update({ last_worn_on: day }).in("id", ids);
     ids.forEach((id) => { const it = byId(id); if (it) it.last_worn_on = day; });
+    await loadWears(); if (!$("tab-today").hidden && rec) drawRec();   // 후기 줄이 바로 나타나게
   });
   toast(t("wearToast"), () => { cancel(); settings.set({ worn: prev }); drawRec(); });
 }
@@ -1408,7 +1485,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.15</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.17</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
