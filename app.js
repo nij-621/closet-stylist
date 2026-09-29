@@ -1037,10 +1037,10 @@ async function loadWears() {
   const { data } = await sb.from("wear_log").select("*").gte("worn_on", new Date(Date.now() - 14 * 864e5).toLocaleDateString("sv-SE")).order("worn_on", { ascending: false });
   wears = data || [];
 }
-// 오늘 입은 코디는 항상, 지난 사흘은 후기가 없을 때만 물어본다. 내일 입기로 한 코디는 아직 묻지 않는다.
+// 아직 안 쓴 후기(오늘 + 지난 사흘)는 날짜를 붙여 물어본다. 이미 쓴 오늘 후기는 오늘 화면에만 — 내일 코디의 후기로 보이지 않게.
 function reviewLines() {
   const today = todayStr();
-  const rows = wears.filter((r) => r.worn_on === today || (r.worn_on < today && !r.rating && (new Date(today) - new Date(r.worn_on)) / 864e5 <= 3));
+  const rows = wears.filter((r) => (r.rating ? r.worn_on === today && dayOff === 0 : r.worn_on <= today && (new Date(today) - new Date(r.worn_on)) / 864e5 <= 3));
   return rows.map((r) => `<button class="rv" data-rv="${r.id}"><span>${r.rating ? `<b>${RV(r.rating)}</b>${r.note ? " · " + esc(r.note) : ""}` : RV("ask")(dayLabel(r.worn_on))}</span><em>${r.rating ? RV("edit") : RV("write")}</em></button>`).join("");
 }
 function openWearReview(row, after) {
@@ -1485,7 +1485,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.17</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.18</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
