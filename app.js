@@ -732,17 +732,19 @@ async function loadWeather() {
   const { lat, lon } = settings.home;
   const day = targetDay();
   const cached = settings.get().wx;
-  if (cached && cached.day === day && cached.am != null && Date.now() - cached.at < 3 * 3600e3) { weather = cached; return; }
-  if (MOCK) { weather = { day, at: Date.now(), am: Number(QS.get("am") ?? 16), pm: Number(QS.get("pm") ?? 23), rain: Number(QS.get("rain") ?? 10), code: 2 }; return; }
+  if (cached && cached.day === day && cached.hi != null && Date.now() - cached.at < 3 * 3600e3) { weather = cached; return; }
+  if (MOCK) { weather = { day, at: Date.now(), am: Number(QS.get("am") ?? 16), pm: Number(QS.get("pm") ?? 23), lo: Number(QS.get("am") ?? 16) - 3, hi: Number(QS.get("pm") ?? 23) + 1, rain: Number(QS.get("rain") ?? 10), code: 2 }; return; }
   try {
-    const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability&daily=weather_code&timezone=auto&forecast_days=2`;
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation_probability&daily=weather_code,temperature_2m_min,temperature_2m_max&timezone=auto&forecast_days=2`;
     const d = await (await fetch(u)).json();
     const hrs = d.hourly.time.map((tm, i) => ({ h: Number(tm.slice(11, 13)), day: tm.slice(0, 10), temp: d.hourly.temperature_2m[i], p: d.hourly.precipitation_probability[i] })).filter((h) => h.day === day);
     const win = (a, b) => hrs.filter((h) => h.h >= a && h.h <= b);
     const avg = (l) => Math.round(l.reduce((s, h) => s + h.temp, 0) / l.length);
     const am = win(7, 9), pm = win(17, 19);
     if (!am.length || !pm.length) throw new Error("no hours");
-    weather = { day, at: Date.now(), am: avg(am), pm: avg(pm), rain: Math.max(...win(7, 19).map((h) => h.p ?? 0)), code: d.daily.weather_code[Math.max(0, d.daily.time.indexOf(day))] };
+    const di = Math.max(0, d.daily.time.indexOf(day));
+    // 화면은 다른 날씨 앱처럼 하루 최저/최고, 추천 계산은 출퇴근 두 창(am·pm)
+    weather = { day, at: Date.now(), am: avg(am), pm: avg(pm), lo: Math.round(d.daily.temperature_2m_min[di]), hi: Math.round(d.daily.temperature_2m_max[di]), rain: Math.max(...win(7, 19).map((h) => h.p ?? 0)), code: d.daily.weather_code[di] };
     settings.set({ wx: weather });
   } catch { weather = null; }
 }
@@ -883,8 +885,8 @@ function validOutfit(o) {
   return true;
 }
 const coreDiff = (a, b) => CORE.filter((s) => (itemIn(a, s)?.id || null) !== (itemIn(b, s)?.id || null));
-// 반복 금지: 앞뒤 5일 안에 "입을게요"로 기록한 조합과는 아우터·상의·하의·신발 중 2칸 이상 달라야 한다.
-// "입을게요"를 누르지 않은 추천은 입지 않은 것으로 본다.
+// 반복 금지: 앞뒤 5일 안에 "입을게요"로 기록한 옷 중 상의·하의(원피스 포함)는 후보에서 뺀다. 아우터·신발은 겹쳐도 된다.
+// "입을게요"를 누르지 않은 추천은 입지 않은 것으로 본다. "전부 다시 골라 줘"로 본 조합과는 2칸 이상 달라야 한다(tooClose).
 const REPEAT_DAYS = 5;
 const tooClose = (o, ids) => coreDiff(o, { items: ids }).length < 2;
 function takenNear(logRows) {
@@ -894,6 +896,11 @@ function takenNear(logRows) {
   const [day, ...ids] = String(settings.get().worn || "").split("|");
   if (day && ids.length && near(day)) out.push(ids);
   return out.filter((ids) => ids.some(byId));
+}
+function wornTopsBottoms() {
+  const out = new Set();
+  takenNear(wears).forEach((ids) => { const r = roles(ids); ids.forEach((id) => { const s = r.get(id); if (s === "top" || s === "bottom") out.add(id); }); });
+  return out;
 }
 
 const TPO_EN = { work: "office day (relaxed dress code; Operations role, mostly seated)", out: "weekend outing", special: "special occasion" };
@@ -931,7 +938,8 @@ async function askStylist(kind, payload, prompt) {
   return gemini([{ text: prompt }]);
 }
 async function recommend({ pin = null, avoid = [] } = {}) {
-  const cand = candidates();
+  const worn = wornTopsBottoms();
+  const cand = candidates().filter((i) => !worn.has(i.id) || i.id === pin?.id);
   const have = (c) => cand.some((i) => slotOf(i) === c);
   const lack = ["top", "shoes"].filter((c) => !have(c)); if (!have("bottom") && !cand.some((i) => i.category === "dress")) lack.push("bottom");
   if (lack.length) return { error: t("lack")(lack.map((s) => t("slot")[s]).join("·")) };
@@ -947,8 +955,8 @@ async function recommend({ pin = null, avoid = [] } = {}) {
   const short = (rows) => (rows || []).map((r) => (r.items || []).map((x) => { const it = byId(x); return it ? sid(it) : null; }).filter(Boolean));
   const known = new Set([...live(recentWear), ...(saved || [])].map((r) => comboKey(r.items || [])));
   const bannedKeys = new Set([...(banned || []), ...reviews.filter((r) => r.rating === "bad")].map((r) => comboKey(r.items || [])));
-  const taken =[...takenNear(live(recentWear)), ...avoid];
-  const takenKeys = new Set(taken.map(comboKey));
+  const taken = [...avoid];
+  const takenKeys = new Set([...takenNear(live(recentWear)), ...avoid].map(comboKey));
   const coreSids = (ids) => ids.map(byId).filter((i) => i && CORE.includes(slotOf(i))).map(sid);
   const taste = (saved || []).filter((r) => !takenKeys.has(comboKey(r.items || [])));
   const wx =weather ? `${dayOff ? "Tomorrow" : "Today"} (${targetDay()}) in ${settings.home.name}: commute 07–09h ${weather.am}°C, return 17–19h ${weather.pm}°C, rain up to ${weather.rain}%.` : "Weather forecast unavailable.";
@@ -968,7 +976,8 @@ Priority: her own signals (saved outfits, swaps) > weather and occasion > the bo
 Saved combinations (her taste: the "safe" card follows this style, but is a fresh outfit, not a copy): ${JSON.stringify(short(taste).slice(0, 30))}.
 Never output these banned combinations: ${JSON.stringify(short(banned))}.
 ${reviews.length ? `Her own reviews after wearing — the strongest signal, notes are in Korean. "bad": never return that combination and avoid what the note complains about. "good": build on what worked. ${JSON.stringify(reviews.map((r) => ({ items: coreSids(r.items || []), rating: r.rating, note: r.note ? String(r.note).slice(0, 200) : undefined })))}.` : ""}
-${no.length ? `She does not repeat outfits within a week. These were worn, planned or just shown. EVERY outfit you return must differ from EACH of them in at least TWO of outer/top/bottom/shoes: ${JSON.stringify(no.map(coreSids))}.` : ""}
+Tops, bottoms and dresses she wore in the last few days are already left out of the candidates; outers and shoes may repeat.
+${no.length ? `These outfits were just shown to her. EVERY outfit you return must differ from EACH of them in at least TWO of outer/top/bottom/shoes: ${JSON.stringify(no.map(coreSids))}.` : ""}
 
 Return JSON only:
 {"outfits":[
@@ -1014,6 +1023,9 @@ async function renderToday() {
     if (rec && !(rec.outfits || []).some((o) => o && o.items.every(byId))) rec = null;
     // 저장해 둔 추천에도 지금의 액세서리 규칙을 적용 (직접 바꾼 조합은 그대로)
     if (rec) rec.outfits.forEach((o) => { if (o && !o.edited && o.items.every(byId)) o.items = fixAccessories(o.items); });
+    // 저장해 둔 추천이 요 며칠 입은 상의·하의를 쓰면 새로 고른다 (직접 바꿨거나 이미 입기로 한 건 그대로)
+    const main = rec?.outfits?.[rec.main]; const worn = wornTopsBottoms();
+    if (main && !main.edited && !isWorn(main) && main.items.some((id) => worn.has(id) && id !== rec.pin)) rec = null;
   }
   if (!rec) {
     if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
@@ -1073,7 +1085,7 @@ function headHtml() {
   const d = targetDate();
   const date = lang === "en" ? d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : `<b>${d.getMonth() + 1}</b>월 <b>${d.getDate()}</b>일 ${"일월화수목금토"[d.getDay()]}요일`;
   const wx = weather
-    ? `<span class="t" title="${t("am")} ${weather.am}° · ${t("pm")} ${weather.pm}°">${weather.am}°<small>→</small>${weather.pm}°</span> · ${WX_TXT(weather.code)} · ${t("rain")} <b>${weather.rain}%</b>`
+    ? `<span class="t" title="${t("am")} ${weather.am}° · ${t("pm")} ${weather.pm}°">${weather.lo}°<small>/</small>${weather.hi}°</span> · ${WX_TXT(weather.code)} · ${t("rain")} <b>${weather.rain}%</b>`
     : t("noWx");
   const days = `<div class="dayseg">${[0, 1].map((k) => `<button data-day="${k}" class="${dayOff === k ? "on" : ""}">${t("days")[k]}</button>`).join("")}</div>`;
   return `<div class="top">${days}<button class="icon-btn gear" data-settings aria-label="${t("set").title}">${icon("i-gear")}</button></div>
@@ -1515,7 +1527,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v0.19</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.0</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
