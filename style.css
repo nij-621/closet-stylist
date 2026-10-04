@@ -526,3 +526,44 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .auth-box input { height: 44px; margin-top: 0; padding: 0 2px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; font-size: 16px; color: var(--ink); }
 .auth-box input:focus { outline: 0; border-color: var(--ink); }
 .auth-box .btn.pri { height: 52px; margin-top: 28px; border-radius: 12px; font-size: 16px; font-weight: 600; flex: none; }
+
+/* 옷장 구조 (v2.1) — 시안 private/closet-structure.html */
+.cl-struct { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; min-height: 44px; }
+.cl-struct .strip { flex: 1; height: 10px; border-radius: 3px; overflow: hidden; display: flex; }
+.cl-struct .strip i { flex: 1; }
+.cl-struct b { font-size: 13px; font-weight: 600; color: var(--ink2); display: flex; align-items: center; gap: 2px; white-space: nowrap; }
+.chip .i.xs { margin-right: -4px; }
+.st { display: flex; flex-direction: column; }
+.st .segc.full { margin-top: 4px; }
+.st-head { margin-top: 18px; font-size: 19px; font-weight: 700; line-height: 1.4; letter-spacing: -.01em; }
+.st-gaps { margin-top: 10px; display: flex; flex-direction: column; }
+.st-gaps button { display: flex; align-items: center; gap: 10px; min-height: 44px; text-align: left; border-top: 1px solid var(--line2); font-size: 14px; }
+.st-gaps button:last-child { border-bottom: 1px solid var(--line2); }
+.st-gaps .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--camel); flex: none; }
+.st-gaps span { flex: 1; }
+.st-gaps b.n { color: var(--camel); font-family: var(--n); font-size: 16px; font-weight: 600; margin-left: 4px; }
+.st-gaps small { font-size: 12px; color: var(--ink3); }
+.st-gaps .n { font-family: var(--n); }
+.st-gaps .i { color: var(--ink3); }
+.st section { margin-top: 26px; }
+.st h3 { font-size: 13px; font-weight: 700; color: var(--ink2); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.st h3 small { font-weight: 500; color: var(--ink3); font-size: 12px; text-align: right; }
+.st h3 small .n { font-family: var(--n); font-size: 13px; }
+.st-tbl { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
+.st-tbl th:first-child, .st-tbl td:first-child { width: 22%; }
+.st-tbl th { font-size: 12px; font-weight: 600; color: var(--ink3); text-align: center; padding: 4px 0 6px; }
+.st-tbl td { border-top: 1px solid var(--line2); height: 44px; text-align: center; padding: 0; }
+.st-tbl td:first-child { text-align: left; font-size: 14px; font-weight: 600; white-space: nowrap; padding-right: 6px; }
+.st-tbl td.tot { color: var(--ink3); font-family: var(--n); font-size: 16px; }
+.st-tbl td button { width: 100%; height: 44px; display: flex; align-items: center; justify-content: center; font-family: var(--n); font-size: 18px; font-weight: 500; border-radius: 8px; font-variant-numeric: tabular-nums; }
+.st-tbl td button.low { color: var(--camel); background: var(--camel-soft); font-weight: 600; }
+.st-sig { height: 18px; display: flex; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+.st-sig i { flex: 1; }
+.st-fams { margin-top: 10px; display: flex; flex-direction: column; }
+.st-fams button { display: grid; grid-template-columns: 96px 1fr 28px; align-items: center; gap: 10px; min-height: 36px; text-align: left; width: 100%; }
+.st-fams .nm { font-size: 13px; font-weight: 500; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-fams .bar { height: 14px; display: flex; gap: 1px; }
+.st-fams .bar i { flex: 0 0 auto; height: 100%; border-radius: 1px; }
+.st-fams .bar i:first-child { border-radius: 3px 1px 1px 3px; } .st-fams .bar i:last-child { border-radius: 1px 3px 3px 1px; } .st-fams .bar i:only-child { border-radius: 3px; }
+.st-fams b.n { font-family: var(--n); font-size: 15px; font-weight: 500; text-align: right; }
+@media (prefers-color-scheme: dark) { .cl-struct .strip i, .st-sig i, .st-fams .bar i { box-shadow: inset 0 0 0 1px rgba(255,255,255,.10); } }

@@ -101,6 +101,19 @@ const T = {
   accTypes: { ko: { earring: "귀걸이", necklace: "목걸이", bracelet: "팔찌", ring: "반지", scarf: "스카프", socks: "양말", hair: "헤어핀", gloves: "장갑", belt: "벨트", hat: "모자" }, en: { earring: "Earrings", necklace: "Necklaces", bracelet: "Bracelets", ring: "Rings", scarf: "Scarves", socks: "Socks", hair: "Hair clips", gloves: "Gloves", belt: "Belts", hat: "Hats" } },
   filters: { ko: { active: "입는 중", work: "회사", out: "외출", parked: "제외·보관" }, en: { active: "Active", work: "Work", out: "Out", parked: "Paused · Stored" } },
   queue: { ko: (n) => `확인할 것이 있는 옷 ${n}`, en: (n) => `${n} to check` },
+  structIn: { ko: "구조", en: "Overview" },
+  struct: {
+    ko: { title: "옷장 구조", all: "전체", work: "회사", out: "외출", bySeason: "계절마다 몇 벌", bySeasonD: "계절이 겹치는 옷은 양쪽에 셈", total: "전체", colors: "색", clothesN: (n) => `옷 <span class="n">${n}</span>벌`,
+      even: "계절마다 고르게 있어요", who: { all: "", work: "출근 ", out: "외출 " }, frac: ["3분의 1", "절반", "3분의 2"],
+      head: (thin, who, fat, frac) => `${thin} ${who}옷이 가장 적어요 — ${fat}의 ${frac}쯤`, shown: "만 보는 중" },
+    en: { title: "Closet overview", all: "All", work: "Work", out: "Out", bySeason: "By season", bySeasonD: "Counted in every season it fits", total: "All", colors: "Colors", clothesN: (n) => `<span class="n">${n}</span> garments`,
+      even: "Every season is well covered", who: { all: "", work: "work ", out: "going-out " }, frac: ["a third", "half", "two-thirds"],
+      head: (thin, who, fat, frac) => `${thin} ${who}clothes are thinnest — about ${frac} of ${fat}`, shown: "" },
+  },
+  fams: {
+    ko: { white: "화이트·아이보리", beige: "베이지·카멜", brown: "브라운", gray: "그레이", black: "블랙", navy: "네이비", blue: "블루", green: "그린·카키", yellow: "옐로", pink: "핑크·코랄", red: "레드·버건디", purple: "보라" },
+    en: { white: "White · ivory", beige: "Beige · camel", brown: "Brown", gray: "Gray", black: "Black", navy: "Navy", blue: "Blue", green: "Green · khaki", yellow: "Yellow", pink: "Pink · coral", red: "Red · burgundy", purple: "Purple" },
+  },
   work: { ko: "회사", en: "Work" }, out: { ko: "외출", en: "Out" },
   st: { ko: { active: "입는 중", paused: "당분간 제외", stored: "보관" }, en: { active: "Active", paused: "Paused", stored: "Stored" } },
   stLong: { ko: { active: "입는 중", paused: "당분간 제외 · 세탁·수선", stored: "보관 · 계절" }, en: { active: "Active", paused: "Paused · laundry / repair", stored: "Stored · off-season" } },
@@ -528,6 +541,7 @@ async function cutOne(it, thumb) {
 
 // ─────────────────────────────────────────── 옷장
 let clCat = "all", clFilter = "active", clQuery = "", clSub = "all";
+let clDrill = null;   // 구조 화면에서 누른 조건 { scope, season?, fam? }
 const CATS = ["all", "top", "bottom", "outer", "dress", "shoes", "bag", "acc"];
 const ACC_TYPES = ["earring", "necklace", "bracelet", "ring", "scarf", "socks", "hair", "gloves", "belt", "hat"];
 const nameOf = (i) => (lang === "en" && i.name_en) ? i.name_en : i.name;
@@ -537,7 +551,13 @@ function drawClosetHead() {
   $("cl-title").textContent = t("closet");
   $("cl-search").placeholder = t("searchPh");
   $("cl-cat").innerHTML = CATS.map((k) => `<button data-cat="${k}" class="${clCat === k ? "on" : ""}">${t("cats")[k]}</button>`).join("");
-  $("cl-filter").innerHTML = ["active", "work", "out", "parked"].map((k) => `<button data-f="${k}" class="chip ${clFilter === k ? "on" : ""}">${t("filters")[k]}</button>`).join("");
+  // 구조 화면에서 들어온 경우: 상태 칩 대신 걸러 보는 조건 하나(× 로 해제)
+  $("cl-filter").innerHTML = clDrill
+    ? `<button data-drill-x class="chip on">${esc(drillLabel())}${icon("i-x", "i xs b")}</button>`
+    : ["active", "work", "out", "parked"].map((k) => `<button data-f="${k}" class="chip ${clFilter === k ? "on" : ""}">${t("filters")[k]}</button>`).join("");
+  const cl = clothesOf(items);
+  $("cl-struct").hidden = cl.length < 10;
+  $("cl-struct").querySelector(".strip").innerHTML = byFam(cl).map((i) => `<i style="background:${esc(i.color_hex || "#999")}"></i>`).join("");
   const sub = $("cl-sub");
   if (clCat === "acc") {
     const have = ACC_TYPES.filter((a) => items.some((i) => i.category === "acc" && i.acc_type === a));
@@ -547,7 +567,8 @@ function drawClosetHead() {
 }
 $("cl-cat").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; clCat = b.dataset.cat; clSub = "all"; renderCloset(); };
 $("cl-sub").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; clSub = b.dataset.sub; renderCloset(); };
-$("cl-filter").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; clFilter = b.dataset.f; renderCloset(); };
+$("cl-filter").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; if (b.hasAttribute("data-drill-x")) clDrill = null; else clFilter = b.dataset.f; renderCloset(); };
+$("cl-struct").onclick = () => openStructure();
 $("cl-search-btn").onclick = () => { const s = $("cl-search"); s.hidden = !s.hidden; if (!s.hidden) s.focus(); else { s.value = ""; clQuery = ""; renderCloset(); } };
 $("cl-search").oninput = (e) => { clQuery = e.target.value.trim().toLowerCase(); renderCloset(); };
 $("cl-queue").onclick = () => { const q = items.filter((i) => !i.reviewed_at); if (q.length) openReview(q[0], q); };
@@ -557,7 +578,11 @@ function closetList() {
   let list = items.filter((i) => clCat === "all" || i.category === clCat);
   if (clCat === "acc" && clSub !== "all") list = list.filter((i) => i.acc_type === clSub);
   const F = { active: (i) => i.status === "active", work: (i) => i.formality_work && i.status === "active", out: (i) => i.formality_out && i.status === "active", parked: (i) => i.status !== "active" };
-  list = list.filter(F[clFilter]);
+  if (clDrill) {
+    list = list.filter(SCOPE[clDrill.scope]);
+    if (clDrill.season) list = list.filter((i) => (i.season || []).includes(clDrill.season));
+    if (clDrill.fam) list = clothesOf(list).filter((i) => famOf(i) === clDrill.fam);
+  } else list = list.filter(F[clFilter]);
   if (clQuery) list = list.filter((i) => [i.name, i.name_en, i.color_name, i.color_name_en, i.subtype, i.subtype_en, i.brand, i.import_id].filter(Boolean).join(" ").toLowerCase().includes(clQuery));
   return list;
 }
@@ -601,6 +626,79 @@ function openStatusPop(anchor, it) {
   anchor.closest(".tile").appendChild(pop);
   pop.querySelectorAll("button").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); pop.remove(); setStatus(it, b.dataset.s); }));
   setTimeout(() => document.addEventListener("click", () => pop.remove(), { once: true }), 0);
+}
+
+// ─────────────────────────────────────────── 옷장 구조 (계절별 개수 · 색 계열)
+// 상태와 상관없이 가진 옷 전부를 셈(계절 보관 중인 옷이 빠지면 그 계절이 얇아 보이므로). 숫자는 앱이 계산, Gemini 안 씀.
+const SCOPE = { all: () => true, work: (i) => i.formality_work, out: (i) => i.formality_out };
+const CLOTHES = ["top", "bottom", "outer", "dress"];
+const clothesOf = (L) => L.filter((i) => CLOTHES.includes(i.category));
+// 색 계열: 저장된 색 이름의 첫 부분("다크 네이비 · 차콜" → "다크 네이비")을 위에서부터 맞춰 봄. 순서가 중요(모카 베이지 → 베이지, 블루 그레이 → 블루)
+const FAMS = [
+  ["black", /^(블랙|올 블랙|차콜 블랙)/], ["purple", /라벤더|라일락|퍼플|보라|플럼/], ["navy", /네이비|인디고/],
+  ["blue", /블루|데님|스카이|코발트|틸|터쿼이즈/], ["pink", /핑크|코랄|피치|살구|블러시|로즈 베이지/], ["red", /버건디|레드|크림슨|오렌지/],
+  ["yellow", /옐로|머스터드/], ["beige", /베이지|카멜|오트밀|그레이지|토프|누드|샌드|탄/], ["brown", /브라운|모카|초콜릿|토터스|체스트넛/],
+  ["green", /카키|그린|민트|세이지|올리브|연둣/], ["gray", /그레이|차콜|회색|멜란지/], ["white", /화이트|아이보리|크림|오프/],
+];
+const FAM_ORDER = ["white", "beige", "brown", "gray", "black", "navy", "blue", "green", "yellow", "pink", "red", "purple"];
+function famOf(i) {
+  const s = (i.color_name || "").split(/ · |바탕/)[0].trim();
+  for (const [k, re] of FAMS) if (re.test(s)) return k;
+  const c = rgbOf(i); if (!c) return "gray";
+  const [r, g, b] = c.map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  return mx - mn < .12 ? (l < .2 ? "black" : l > .85 ? "white" : "gray") : "gray";
+}
+const lumOf = (i) => { const c = rgbOf(i); return c ? .299 * c[0] + .587 * c[1] + .114 * c[2] : 0; };
+const byFam = (L) => [...L].sort((a, b) => FAM_ORDER.indexOf(famOf(a)) - FAM_ORDER.indexOf(famOf(b)) || lumOf(b) - lumOf(a));
+const ST_CATS = ["top", "bottom", "dress", "outer", "shoes"];
+const ST_LOW = .6;   // 그 종류에서 가장 많은 계절의 60% 미만이면 표에 표시(사용자 확인 2026-10-04)
+let stScope = "all";
+
+function drillLabel() {
+  const d = clDrill, S = t("opts").season, X = t("struct");
+  const parts = [d.season && S[d.season], d.fam && t("fams")[d.fam], d.scope !== "all" && X[d.scope]].filter(Boolean);
+  return parts.join(" · ") + X.shown;
+}
+function openStructure() {
+  const X = t("struct"), S = t("opts").season, C = t("cats");
+  const L = items.filter(SCOPE[stScope]);
+  const cnt = (cat, s) => L.filter((i) => i.category === cat && (!s || (i.season || []).includes(s))).length;
+  const skip = (cat, s) => cat === "outer" && s === "summer";   // 여름 아우터는 적은 게 정상
+  const fits = (cat) => SEASONS.filter((s) => !skip(cat, s));
+  const best = (cat) => fits(cat).reduce((a, s) => (cnt(cat, s) > cnt(cat, a) ? s : a));
+  const low = (cat, s) => !skip(cat, s) && cnt(cat, s) < cnt(cat, best(cat)) * ST_LOW;
+  // 가장 얇은 계절 = 상의+하의+신발 합이 가장 작은 계절
+  const tot = SEASONS.map((s) => [s, ["top", "bottom", "shoes"].reduce((a, c) => a + cnt(c, s), 0)]);
+  const thin = tot.reduce((a, x) => (x[1] < a[1] ? x : a)), fat = tot.reduce((a, x) => (x[1] > a[1] ? x : a));
+  const ratio = fat[1] ? thin[1] / fat[1] : 1;
+  const gaps = ratio < .8 ? ST_CATS.filter((c) => !skip(c, thin[0])).map((c) => ({ c, n: cnt(c, thin[0]), b: cnt(c, best(c)), bs: best(c) }))
+    .filter((g) => g.b && g.n < g.b * .75).sort((a, b) => a.n / a.b - b.n / b.b).slice(0, 3) : [];
+  const head = ratio < .8 ? X.head(S[thin[0]], X.who[stScope], S[fat[0]], X.frac[ratio < .4 ? 0 : ratio < .6 ? 1 : 2]) : X.even;
+  const cl = clothesOf(L);
+  const groups = FAM_ORDER.map((k) => [k, cl.filter((i) => famOf(i) === k)]).filter(([, g]) => g.length).sort((a, b) => b[1].length - a[1].length);
+  const unit = groups.length ? 100 / groups[0][1].length : 0;
+  const sw = (i, w) => `<i style="background:${esc(i.color_hex || "#999")}${w ? `;width:calc(${w}% - 1px)` : ""}"></i>`;
+  openModal(`
+    <div class="page-head"><button class="back" id="st-back" aria-label="${t("back")}">${icon("i-back")}</button><div class="h1">${X.title}</div></div>
+    <div class="st">
+      <div class="segc full" id="st-scope">${["all", "work", "out"].map((k) => `<button data-sc="${k}" class="${stScope === k ? "on" : ""}">${X[k]}</button>`).join("")}</div>
+      <p class="st-head">${esc(head)}</p>
+      ${gaps.length ? `<div class="st-gaps">${gaps.map((g) => `<button data-c="${g.c}" data-s="${thin[0]}"><i class="dot"></i><span>${S[thin[0]]} ${C[g.c]} <b class="n">${g.n}</b> <small>· ${S[g.bs]} <span class="n">${g.b}</span></small></span>${icon("i-chev", "i s")}</button>`).join("")}</div>` : ""}
+      <section><h3>${X.bySeason} <small>${X.bySeasonD}</small></h3>
+        <table class="st-tbl"><thead><tr><th></th>${SEASONS.map((s) => `<th>${S[s]}</th>`).join("")}<th>${X.total}</th></tr></thead>
+        <tbody>${ST_CATS.map((c) => `<tr><td>${C[c]}</td>${SEASONS.map((s) => `<td><button data-c="${c}" data-s="${s}" class="${low(c, s) ? "low" : ""}">${cnt(c, s)}</button></td>`).join("")}<td class="tot n">${cnt(c)}</td></tr>`).join("")}</tbody></table>
+      </section>
+      ${cl.length ? `<section><h3>${X.colors} <small>${X.clothesN(cl.length)}</small></h3>
+        <div class="st-sig">${byFam(cl).map((i) => sw(i)).join("")}</div>
+        <div class="st-fams">${groups.map(([k, g]) => `<button data-fam="${k}"><span class="nm">${t("fams")[k]}</span><span class="bar">${byFam(g).map((i) => sw(i, unit)).join("")}</span><b class="n">${g.length}</b></button>`).join("")}</div>
+      </section>` : ""}
+    </div>`, "page");
+  const m = $("modal");
+  m.querySelector("#st-back").onclick = closeModal;
+  m.querySelectorAll("[data-sc]").forEach((b) => (b.onclick = () => { stScope = b.dataset.sc; openStructure(); }));
+  const go = (drill, cat) => { clDrill = { scope: stScope, ...drill }; clCat = cat; clSub = "all"; clQuery = ""; $("cl-search").value = ""; $("cl-search").hidden = true; closeModal(); renderCloset(); window.scrollTo(0, 0); };
+  m.querySelectorAll("[data-c]").forEach((b) => (b.onclick = () => go({ season: b.dataset.s }, b.dataset.c)));
+  m.querySelectorAll("[data-fam]").forEach((b) => (b.onclick = () => go({ fam: b.dataset.fam }, "all")));
 }
 
 // ─────────────────────────────────────────── 옷 상세 · 확인·수정
@@ -1527,7 +1625,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.0</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.1</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
