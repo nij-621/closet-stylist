@@ -101,7 +101,7 @@ const T = {
   accTypes: { ko: { earring: "귀걸이", necklace: "목걸이", bracelet: "팔찌", ring: "반지", scarf: "스카프", socks: "양말", hair: "헤어핀", gloves: "장갑", belt: "벨트", hat: "모자" }, en: { earring: "Earrings", necklace: "Necklaces", bracelet: "Bracelets", ring: "Rings", scarf: "Scarves", socks: "Socks", hair: "Hair clips", gloves: "Gloves", belt: "Belts", hat: "Hats" } },
   filters: { ko: { active: "입는 중", work: "회사", out: "외출", parked: "제외·보관" }, en: { active: "Active", work: "Work", out: "Out", parked: "Paused · Stored" } },
   queue: { ko: (n) => `확인할 것이 있는 옷 ${n}`, en: (n) => `${n} to check` },
-  structIn: { ko: "구조", en: "Overview" },
+  structIn: { ko: "구조", en: "Overview" }, wlCount: { ko: (n) => `${n}번`, en: (n) => `${n} days` }, wlIn: { ko: "입은 기록", en: "Worn log" },
   struct: {
     ko: { title: "옷장 구조", all: "전체", work: "회사", out: "외출", bySeason: "계절마다 몇 벌", bySeasonD: "계절이 겹치는 옷은 양쪽에 셈", total: "전체", colors: "색", clothesN: (n) => `옷 <span class="n">${n}</span>벌`,
       even: "계절마다 고르게 있어요", who: { all: "", work: "출근 ", out: "외출 " }, frac: ["3분의 1", "절반", "3분의 2"],
@@ -561,6 +561,10 @@ function drawClosetHead() {
   $("cl-filter").innerHTML = clDrill
     ? `<button data-drill-x class="chip on">${esc(drillLabel())}${icon("i-x", "i xs b")}</button>`
     : ["active", "work", "out", "parked"].map((k) => `<button data-f="${k}" class="chip ${clFilter === k ? "on" : ""}">${t("filters")[k]}</button>`).join("");
+  // 입은 기록 줄: 가장 최근에 입은 코디의 썸네일 + 날짜 (기록은 처음 한 번만 불러옴)
+  if (!wearsLoaded) { wearsLoaded = true; loadWears().then(() => { if (!$("tab-closet").hidden) drawClosetHead(); }); }
+  const lastW = wears.filter((r) => r.worn_on <= todayStr())[0];
+  $("cl-log").querySelector(".th").innerHTML = lastW ? coreOf(lastW.items).slice(0, 4).map((i) => `<img src="${esc(thumbOf(i))}" alt="">`).join("") + `<span>${esc(dayLabel(lastW.worn_on).replace(/ \S+요일$/, ""))}</span>` : "";
   const cl = clothesOf(items);
   $("cl-struct").hidden = cl.length < 10;
   $("cl-struct").querySelector(".strip").innerHTML = byFam(cl).map((i) => `<i style="background:${esc(i.color_hex || "#999")}"></i>`).join("");
@@ -575,6 +579,7 @@ $("cl-cat").onclick = (e) => { const b = e.target.closest("button"); if (!b) ret
 $("cl-sub").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; clSub = b.dataset.sub; renderCloset(); };
 $("cl-filter").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; if (b.hasAttribute("data-drill-x")) clDrill = null; else clFilter = b.dataset.f; renderCloset(); };
 $("cl-struct").onclick = () => openStructure();
+$("cl-log").onclick = () => openWearLog();
 $("cl-search-btn").onclick = () => { const s = $("cl-search"); s.hidden = !s.hidden; if (!s.hidden) s.focus(); else { s.value = ""; clQuery = ""; renderCloset(); } };
 $("cl-search").oninput = (e) => { clQuery = e.target.value.trim().toLowerCase(); renderCloset(); };
 $("cl-queue").onclick = () => { const q = items.filter((i) => !i.reviewed_at); if (q.length) openReview(q[0], q); };
@@ -1158,7 +1163,7 @@ async function renderToday() {
 function persistRec() { localStorage.setItem(recKey(), JSON.stringify(rec)); }
 
 // 착용 후기: 입은 날부터 쓸 수 있고, 오늘 화면의 입기 버튼 아래와 "입은 기록"에서 보고 고친다.
-let wears = [];
+let wears = [], wearsLoaded = false;
 const RV = (k) => t("rv")[k];
 const dayLabel = (s) => { const d = new Date(s + "T12:00:00"); return lang === "en" ? d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : `${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}요일`; };
 const coreOf = (ids) => (ids || []).map(byId).filter((i) => i && CORE.includes(slotOf(i)));
@@ -1191,11 +1196,48 @@ function openWearReview(row, after) {
     if (after) after(); else if (!$("tab-today").hidden && rec) drawRec();
   };
 }
+// 입은 기록: 날마다 한 장(2×2 옷 + 가방·액세서리 + 다리 칸 + 후기). 옷장 머리말과 오늘 화면 두 곳에서 열고, 코디 추천과는 상관없이 바로 뜬다.
+// 기온은 그날 실제 최저/최고(Open-Meteo, 최근 92일), 출근·외출과 다리 칸은 함께 저장된 코디(outfits)에서 읽는다.
+let pastWx = null;
+async function loadPastTemps() {
+  if (pastWx) return pastWx;
+  if (MOCK) return (pastWx = new Proxy({}, { get: (_, d) => typeof d === "string" && /^\d{4}-/.test(d) ? { lo: 8 + (Number(d.slice(-2)) % 5), hi: 15 + (Number(d.slice(-2)) % 4) } : undefined }));
+  try {
+    const { lat, lon } = settings.home;
+    const d = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_min,temperature_2m_max&timezone=auto&past_days=92&forecast_days=1`)).json();
+    pastWx = {}; d.daily.time.forEach((day, i) => { pastWx[day] = { lo: Math.round(d.daily.temperature_2m_min[i]), hi: Math.round(d.daily.temperature_2m_max[i]) }; });
+  } catch { pastWx = {}; }
+  return pastWx;
+}
 async function openWearLog() {
   const { data, error } = await sb.from("wear_log").select("*").order("worn_on", { ascending: false }).limit(60);
   if (error) return toast(RV("loadFail"));
   const rows = live(data).filter((r) => r.worn_on <= todayStr());
-  openModal(`<h2>${RV("log")}</h2>${rows.length ? `<div class="wl">${rows.map((r) => `<button class="alt" data-w="${r.id}"><div class="th">${coreOf(r.items).slice(0, 3).map((i) => `<img src="${esc(thumbOf(i))}" alt="">`).join("")}</div><div class="tx"><b>${dayLabel(r.worn_on)}${r.rating ? " · " + RV(r.rating) : ""}</b><span>${r.note ? esc(r.note) : r.rating ? coreOf(r.items).map((i) => esc(nameOf(i))).join(" · ") : RV("noReview") + " · " + RV("write")}</span></div>${icon("i-chev", "i s go")}</button>`).join("")}</div>` : `<p class="muted small" style="padding:16px 0">${RV("none")}</p>`}`);
+  const oids = [...new Set(rows.map((r) => r.outfit_id).filter(Boolean))];
+  const [{ data: outs }, wx] = await Promise.all([oids.length ? sb.from("outfits").select("id, tpo, gauge").in("id", oids) : Promise.resolve({ data: [] }), loadPastTemps()]);
+  const ofit = new Map((outs || []).map((o) => [o.id, o]));
+  await signUrls(rows.flatMap((r) => (r.items || []).map(byId).filter(Boolean).flatMap((i) => [i.thumb_path, i.cut_path])).filter(Boolean));
+  const tpoName = (o) => !o ? "" : o.tpo === "formal" ? t("occ")[o.gauge?.occ] || t("tpo").special : t("tpo")[o.tpo] || "";
+  const month = (d) => lang === "en" ? new Date(d + "T12:00:00").toLocaleDateString("en-GB", { month: "long" }) : `${Number(d.slice(5, 7))}월`;
+  const card = (r) => {
+    const o = ofit.get(r.outfit_id); const set = { items: (r.items || []).filter(byId) };
+    const dress = itemIn(set, "top")?.category === "dress";
+    const cellsOf = ["outer", "top", ...(dress ? [] : ["bottom"]), "shoes"].map((s) => itemIn(set, s)).filter(Boolean);
+    const extras = EXTRA.map((s) => itemIn(set, s)).filter(Boolean);
+    const lg = o?.gauge?.legs && o.gauge.legs !== "socks" ? t("legs")[o.gauge.legs]?.[2] : "";
+    const w = wx[r.worn_on]; const tp = tpoName(o);
+    return `<button class="wcard" data-w="${r.id}">
+      <div class="hd"><b>${dayLabel(r.worn_on).replace(/(\d+)/g, '<span class="n">$1</span>')}${tp ? " · " + esc(tp) : ""}</b>${w ? `<span class="wt n">${w.lo}°<small>/</small>${w.hi}°</span>` : ""}</div>
+      <div class="sheet2">${cellsOf.map((i) => { const cut = i.cut_path && urlCache.get(i.cut_path); return `<div><div class="ph">${thumbOf(i) ? `<img class="${cut ? "cut" : "raw"}" src="${esc(thumbOf(i))}" alt="" loading="lazy">` : ""}</div><div class="nm">${esc(nameOf(i))}</div></div>`; }).join("")}</div>
+      ${extras.length || lg ? `<div class="wacc">${extras.map((i) => `<img src="${esc(thumbOf(i))}" alt="${esc(nameOf(i))}" loading="lazy">`).join("")}${lg ? `<span class="legs">${esc(lg)}</span>` : ""}</div>` : ""}
+      ${r.rating ? `<div class="wrv"><span class="r ${r.rating}">${RV(r.rating)}</span>${r.note ? `<span class="m">${esc(r.note)}</span>` : ""}</div>` : `<div class="wrv ask">${RV("write")}</div>`}
+    </button>`;
+  };
+  let html = "", last = "";
+  rows.forEach((r) => { const m = r.worn_on.slice(0, 7); if (m !== last) { html += `<p class="wmonth">${month(r.worn_on)}</p>`; last = m; } html += card(r); });
+  openModal(`<div class="page-head"><button class="back" id="wl-back" aria-label="${t("back")}">${icon("i-back")}</button><div class="h1">${RV("log")}</div>${rows.length ? `<span class="wl-n">${t("wlCount")(rows.length)}</span>` : ""}</div>
+    ${rows.length ? `<div class="wlog">${html}</div>` : `<p class="muted small" style="padding:16px 0">${RV("none")}</p>`}`, "page");
+  $("wl-back").onclick = closeModal;
   $("modal").querySelectorAll("[data-w]").forEach((b) => (b.onclick = () => openWearReview(rows.find((r) => String(r.id) === b.dataset.w), () => { if (!$("tab-today").hidden && rec) drawRec(); openWearLog(); })));
 }
 function headHtml() {
@@ -1485,7 +1527,7 @@ function wearMain() {
   const prev = settings.get().worn; settings.set({ worn: mark }); drawRec();
   const cancel = pendingWear = later(async () => {
     pendingWear = null;
-    const { data: o, error } = await sb.from("outfits").insert({ owner: me.id, tpo: tpo === "special" ? "formal" : tpo, kind: main.kind, items: ids, score: main.score, reason: LX(main.reason), gauge: { top: main.top, occ: tpo === "special" ? occ : null }, saved: true }).select().single();
+    const { data: o, error } = await sb.from("outfits").insert({ owner: me.id, tpo: tpo === "special" ? "formal" : tpo, kind: main.kind, items: ids, score: main.score, reason: LX(main.reason), gauge: { top: main.top, occ: tpo === "special" ? occ : null, legs: legsOf(main) }, saved: true }).select().single();
     if (error) { settings.set({ worn: prev }); if (!$("tab-today").hidden) drawRec(); return toast(t("saveFail") + error.message); }
     await sb.from("wear_log").insert({ owner: me.id, worn_on: day, outfit_id: o?.id ?? null, items: ids, source: "recommendation" });
     await sb.from("items").update({ last_worn_on: day }).in("id", ids);
@@ -1678,7 +1720,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.2</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.3</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
