@@ -567,3 +567,22 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .st-fams .bar i:first-child { border-radius: 3px 1px 1px 3px; } .st-fams .bar i:last-child { border-radius: 1px 3px 3px 1px; } .st-fams .bar i:only-child { border-radius: 3px; }
 .st-fams b.n { font-family: var(--n); font-size: 15px; font-weight: 500; text-align: right; }
 @media (prefers-color-scheme: dark) { .cl-struct .strip i, .st-sig i, .st-fams .bar i { box-shadow: inset 0 0 0 1px rgba(255,255,255,.10); } }
+
+/* 색 정해서 고르기 (v2.2) — 시안 private/color-start.html */
+.btn.colorbtn { width: 100%; height: 48px; margin-top: 16px; border: 1px solid var(--line); font-size: 14px; font-weight: 600; gap: 8px; }
+.colorbtn .dots { display: flex; padding-left: 3px; }
+.colorbtn .dots i { width: 12px; height: 12px; border-radius: 50%; margin-left: -3px; box-shadow: 0 0 0 1.5px var(--paper); }
+.ctag { display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; height: 36px; margin-top: 12px; padding: 0 2px 0 12px; border-radius: 999px; background: var(--camel-soft); color: var(--camel); font-size: 13px; font-weight: 600; max-width: 100%; }
+.ctag .sw { display: flex; } .ctag .sw i { width: 10px; height: 10px; border-radius: 50%; margin-right: -2px; }
+.ctag button { width: 36px; height: 36px; display: grid; place-items: center; color: var(--camel); flex: none; }
+.cfams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 14px 0 16px; }
+.cfams button { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; text-align: left; }
+.cfams .sw { display: flex; flex: none; }
+.cfams .sw i { width: 14px; height: 26px; }
+.cfams .sw i:first-child { border-radius: 4px 0 0 4px; } .cfams .sw i:last-child { border-radius: 0 4px 4px 0; } .cfams .sw i:only-child { border-radius: 4px; }
+.cfams .nm { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; line-height: 1.25; }
+.cfams .n { font-family: var(--n); font-size: 15px; font-weight: 500; color: var(--ink3); }
+.cfams button.on { border-color: var(--camel); box-shadow: inset 0 0 0 1px var(--camel); }
+.cfams button.on .n { color: var(--camel); }
+.cfams button:disabled { opacity: .4; }
+@media (prefers-color-scheme: dark) { .cfams .sw i, .colorbtn .dots i, .ctag .sw i { box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); } .colorbtn .dots i { box-shadow: 0 0 0 1.5px var(--paper), inset 0 0 0 1px rgba(255,255,255,.12); } }

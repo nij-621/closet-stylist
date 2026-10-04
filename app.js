@@ -110,6 +110,12 @@ const T = {
       even: "Every season is well covered", who: { all: "", work: "work ", out: "going-out " }, frac: ["a third", "half", "two-thirds"],
       head: (thin, who, fat, frac) => `${thin} ${who}clothes are thinnest — about ${frac} of ${fat}`, shown: "" },
   },
+  color: {
+    ko: { btn: "색 정해서 골라 줘", title: "어떤 색으로 입을까요", sub: "두 개까지 고를 수 있어요", pick: "색을 골라 주세요", go: (w) => `${w} 골라 줘`, tag: (w) => `${w} 고른 코디`, off: "색 지정 풀기",
+      making: (w) => `${w} 고르는 중`, none: (n) => `오늘 입을 수 있는 ${n} 옷이 없어요.`, fail: "고른 색으로 맞는 조합을 만들지 못했어요. 다른 색으로 해 보세요." },
+    en: { btn: "Pick by color", title: "Which color today?", sub: "Choose up to two", pick: "Choose a color", go: (w) => `Go with ${w}`, tag: (w) => `Built around ${w}`, off: "Clear color",
+      making: (w) => `Building around ${w}`, none: (n) => `Nothing in ${n} fits today.`, fail: "Couldn't build an outfit in that color. Try another." },
+  },
   fams: {
     ko: { white: "화이트·아이보리", beige: "베이지·카멜", brown: "브라운", gray: "그레이", black: "블랙", navy: "네이비", blue: "블루", green: "그린·카키", yellow: "옐로", pink: "핑크·코랄", red: "레드·버건디", purple: "보라" },
     en: { white: "White · ivory", beige: "Beige · camel", brown: "Brown", gray: "Gray", black: "Black", navy: "Navy", blue: "Blue", green: "Green · khaki", yellow: "Yellow", pink: "Pink · coral", red: "Red · burgundy", purple: "Purple" },
@@ -874,7 +880,14 @@ let dayOff = new Date().getHours() >= 20 ? 1 : 0;
 const targetDate = () => { const d = new Date(); d.setDate(d.getDate() + dayOff); return d; };
 const targetDay = () => targetDate().toLocaleDateString("sv-SE");
 const recKeyOf = (day) => `stylist.rec.${day}.${tpo}${tpo === "special" ? "." + occ : ""}`;
-const recKey = () => recKeyOf(targetDay());
+// 색 정해서 고르기: 그날 그 상황에만. 색을 고른 추천은 따로 저장해서 ×를 누르면 평소 추천이 그대로 돌아온다.
+const colorKey = () => `stylist.color.${targetDay()}.${tpo}${tpo === "special" ? "." + occ : ""}`;
+const colorsNow = () => { try { return (localStorage.getItem(colorKey()) || "").split(",").filter((k) => FAM_ORDER.includes(k)); } catch { return []; } };
+const setColors = (ks) => { try { ks.length ? localStorage.setItem(colorKey(), ks.join(",")) : localStorage.removeItem(colorKey()); } catch {} };
+const recKey = () => { const c = colorsNow(); return recKeyOf(targetDay()) + (c.length ? ".c-" + c.join("-") : ""); };
+const famNames = (ks) => ks.map((k) => t("fams")[k]).join(" + ");
+const withRo = (w) => { if (lang === "en") return w; const c = w.charCodeAt(w.length - 1) - 0xac00, j = c >= 0 && c < 11172 ? c % 28 : 0; return w + (j && j !== 8 ? "으로" : "로"); };
+const colorHit = (o, keys) => keys.every((k) => CORE.some((s) => { const i = itemIn(o, s); return i && famOf(i) === k; }));
 
 function candidates() {
   return items.filter((i) => {
@@ -1041,6 +1054,10 @@ async function recommend({ pin = null, avoid = [] } = {}) {
   const have = (c) => cand.some((i) => slotOf(i) === c);
   const lack = ["top", "shoes"].filter((c) => !have(c)); if (!have("bottom") && !cand.some((i) => i.category === "dress")) lack.push("bottom");
   if (lack.length) return { error: t("lack")(lack.map((s) => t("slot")[s]).join("·")) };
+  const colors = colorsNow();
+  const inColor = (k) => cand.filter((i) => CORE.includes(slotOf(i)) && famOf(i) === k);
+  const noCol = colors.find((k) => !inColor(k).length);
+  if (noCol) return { error: t("color").none(t("fams")[noCol]) };
   if (!PROFILE) await loadProfile();
   if (!PROFILE) return { error: t("noProfile") };
   const [{ data: recentWear }, { data: banned }, { data: saved }, { data: rated }] = await Promise.all([
@@ -1058,7 +1075,8 @@ async function recommend({ pin = null, avoid = [] } = {}) {
   const coreSids = (ids) => ids.map(byId).filter((i) => i && CORE.includes(slotOf(i))).map(sid);
   const taste = (saved || []).filter((r) => !takenKeys.has(comboKey(r.items || [])));
   const wx =weather ? `${dayOff ? "Tomorrow" : "Today"} (${targetDay()}) in ${settings.home.name}: commute 07–09h ${weather.am}°C, return 17–19h ${weather.pm}°C, rain up to ${weather.rain}%.` : "Weather forecast unavailable.";
-  const ask = (no) => askStylist("recommend", { cand, pin, avoid: no.map(coreSids), tpo, occ, needOuter: needOuter(), sid, slotOf }, `${PROFILE}
+  const colorRule = colors.length ? `COLOR OF THE DAY — she chose ${colors.map((k) => T.fams.en[k]).join(" and ")}. EVERY outfit (safe, vary and dare) must have ${colors.length > 1 ? "each of these colors" : "this color"} in at least one of outer / top / bottom (or dress) / shoes; outfits without it are discarded. Make it the color the outfit is built around and say so in sentence 1 of the reason. Candidates in ${colors.length > 1 ? "these colors" : "this color"}: ${colors.map((k) => `${T.fams.en[k]}: ${inColor(k).map(sid).join(", ")}`).join("; ")}. If a chosen color is one her profile says to avoid near the face, put it on the bottom, shoes or an outer worn open — not on the top.` : "";
+  const ask = (no) => askStylist("recommend", { cand, pin, avoid: no.map(coreSids), tpo, occ, needOuter: needOuter(), sid, slotOf, colors, famOf }, `${PROFILE}
 ${STYLE_RULES}
 ${OUTFIT_RULES}
 
@@ -1070,6 +1088,7 @@ Optional: one bag, and accessories — at most one per group: acc_earring, acc_n
 Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes${weather && weather.am >= 17 ? " — except ankle-length trousers with loafers or sneakers, where she wears no-show socks: leave socks out" : ""}. With a skirt or dress, include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out — the app adds stockings, no-show socks or bare legs by temperature. Never socks with sandals or mules.
 ${weather && weather.rain >= 40 ? "Rain is likely: avoid suede, light canvas and sandals; prefer items marked 비OK; avoid floor-length hems." : ""}
 ${pin ? `MUST include item ${sid(pin)} (${pin.name}) in every outfit.` : ""}
+${colorRule}
 Priority: her own signals (saved outfits, swaps) > weather and occasion > the body and color rules. Rules only rank; they never forbid.
 Saved combinations (her taste: the "safe" card follows this style, but is a fresh outfit, not a copy): ${JSON.stringify(short(taste).slice(0, 30))}.
 Never output these banned combinations: ${JSON.stringify(short(banned))}.
@@ -1097,18 +1116,18 @@ ${cand.map(candLine).join("\n")}`);
   let list = [], repeated = [];
   for (let n = 0; n < 2 && !list.some(Boolean); n++) {
     const out = await ask([...taken, ...repeated]);
-    const ok = (out.outfits || []).map(norm).map((o) => o && { ...o, items: fixAccessories(o.items) }).map((o) => (o && validOutfit(o) && !bannedKeys.has(comboKey(o.items)) ? o : null));
+    const ok = (out.outfits || []).map(norm).map((o) => o && { ...o, items: fixAccessories(o.items) }).map((o) => (o && validOutfit(o) && !bannedKeys.has(comboKey(o.items)) && colorHit(o, colors) ? o : null));
     list = ok.map((o) => (o && !taken.some((ids) => tooClose(o, ids)) ? o : null));
     repeated = ok.filter((o, i) => o && !list[i]).map((o) => o.items);
   }
   const safe = list.find((o) => o && o.kind === "safe") || list.find(Boolean);
-  if (!safe) return { error: t(repeated.length ? "noNew" : "noCombo") };
+  if (!safe) return { error: colors.length && !repeated.length ? t("color").fail : t(repeated.length ? "noNew" : "noCombo") };
   safe.kind = "safe";
   // 변주 = 안전과 정확히 1칸 차이, 도전 = 2칸 이상 + 해 본 적 없는 조합. 어기면 그 카드는 비움.
   const vary = list.find((o) => o && o !== safe && coreDiff(o, safe).length === 1) || null;
   const dare = list.find((o) => o && o !== safe && o !== vary && coreDiff(o, safe).length >= 2 && !known.has(comboKey(o.items))) || null;
   if (vary) vary.kind = "vary"; if (dare) dare.kind = "dare";
-  return { outfits: [safe, vary, dare], main: 0, pin: pin?.id || null, avoid, made: Date.now() };
+  return { outfits: [safe, vary, dare], main: 0, pin: pin?.id || null, avoid, colors, made: Date.now() };
 }
 
 async function renderToday() {
@@ -1205,8 +1224,9 @@ function slotCell(o, s, span) {
   const it = itemIn(o, s);
   if (!it) return `<div class="cell ${span ? "span" : ""}"><div class="slot empty-slot" data-slot="${s}"><span>${t("noOuter")}${weather ? ` · ${t("morning")} ${weather.am}°` : ""}</span><button data-add="${s}">${icon("i-plus", "i xs b")}${t("add")}</button></div><span class="k">${t("slot")[s]}</span></div>`;
   const pinned = rec.pin === it.id;
+  const hue = !pinned && (rec.colors || []).includes(famOf(it)) ? t("fams")[famOf(it)] : "";   // 고른 색이 들어간 칸
   // 배경을 지운 사진은 여백을 두고, 원래 사진은 칸을 꽉 채움
-  return `<div class="cell ${span ? "span" : ""}"><div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div><span class="k ${pinned ? "pin" : ""}">${t("slot")[s]}${pinned ? " · " + t("pinMark") : ""}</span><span class="nm">${esc(nameOf(it))}</span></div>`;
+  return `<div class="cell ${span ? "span" : ""}"><div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div><span class="k ${pinned || hue ? "pin" : ""}">${t("slot")[s]}${pinned ? " · " + t("pinMark") : hue ? " · " + hue : ""}</span><span class="nm">${esc(nameOf(it))}</span></div>`;
 }
 function cells(o) {
   const dress = itemIn(o, "top")?.category === "dress"; const list = [];
@@ -1233,7 +1253,10 @@ function drawRec() {
   const alts = rec.outfits.map((o, i) => [o, i]).filter(([o, i]) => i !== rec.main && (o || i === 2));
   const wornKey = isWorn(main);
   const lackShoes = tpo === "special" && occ === "dinner" && itemIn(main, "shoes") && /sneaker|스니커|운동화/i.test((itemIn(main, "shoes").subtype || "") + (itemIn(main, "shoes").subtype_en || ""));
+  const C = t("color"); const cols = rec.colors || [];
+  const dot = (k) => { const i = byFam(clothesOf(items).filter((x) => famOf(x) === k))[0]; return `<i style="background:${esc(i?.color_hex || "#999")}"></i>`; };
   body.innerHTML = `${headHtml()}
+    ${cols.length ? `<div class="ctag"><span class="sw">${cols.map(dot).join("")}</span>${esc(C.tag(withRo(famNames(cols))))}<button id="td-color-x" aria-label="${C.off}">${icon("i-x", "i xs b")}</button></div>` : ""}
     <div class="stage"><div class="stack" id="stack">${cells(main)}</div></div>
     ${extrasHtml(main)}
     <div class="acts"><button class="btn pri big ${wornKey ? "done" : ""}" id="td-wear" aria-pressed="${wornKey}" ${wornRow(main)?.rating ? "disabled" : ""}>${icon("i-check", "i s b")}${wornKey ? t("worn") : t("wear")}</button></div>
@@ -1247,6 +1270,7 @@ function drawRec() {
       const what = d.length >= 3 ? t("diffN")(d.length) : d.length ? t("diff")(d.map((s) => t("slot")[s]).join("·")) : t("diffAcc");
       return `<button class="alt" data-alt="${i}"><div class="th">${(its.length ? its : [itemIn(o, "top")]).map((x) => `<img src="${esc(thumbOf(x))}" alt="">`).join("")}</div><div class="tx"><b>${K[o.kind] || K.safe}${o.edited ? " · " + t("edited") : ""} · ${what}</b><span>${its.slice(0, 2).map((x) => esc(nameOf(x))).join(" · ")}${its.length > 2 ? " …" : ""}</span></div>${icon("i-chev", "i s go")}</button>`;
     }).join("")}</div>
+    <button class="btn colorbtn" id="td-color"><span class="dots">${["red", "beige", "navy"].map(dot).join("")}</span>${C.btn}</button>
     <div class="tr"><button class="btn txt" id="td-redo">${t("redo")}</button><button class="btn txt" id="td-ban">${t("ban")}</button><button class="btn txt" id="td-log">${RV("log")}</button></div>
     ${lackShoes ? `<div class="gap"><b>${t("gap")[0]}</b><br>${t("gap")[1]}<br><button id="td-buy">${t("gap")[2]} ${icon("i-chev", "i xs")}</button></div>` : ""}`;
   bindHead();
@@ -1257,6 +1281,7 @@ function drawRec() {
   body.querySelectorAll("[data-add]").forEach((b) => (b.onclick = () => swapTo(b.dataset.add, pool(b.dataset.add)[0])));
   body.querySelectorAll("[data-xslot]").forEach((b) => (b.onclick = () => (b.dataset.id ? openItemSheet(b.dataset.xslot, byId(b.dataset.id)) : pickExtra(b.dataset.xslot))));
   $("td-wear").onclick = wearMain; $("td-ban").onclick = banMain; $("td-redo").onclick = redo; $("td-log").onclick = openWearLog;
+  $("td-color").onclick = openColorPick; const cx = $("td-color-x"); if (cx) cx.onclick = () => { setColors([]); rec = null; renderToday(); };
   body.querySelectorAll("[data-rv]").forEach((b) => (b.onclick = () => openWearReview(wears.find((w) => String(w.id) === b.dataset.rv))));
   const tb = $("td-buy"); if (tb) tb.onclick = () => showTab("judge");
 }
@@ -1375,6 +1400,34 @@ async function redo() {
   localStorage.removeItem(recKey());
   if (!rec) return renderToday();
   if (await regen({ pin, avoid }, t("redoing"))) toast(t("redone"));
+}
+// 색 정해서 고르기: 오늘 날씨·상황에 입을 수 있는 옷(겉옷·상의·하의·원피스·신발)이 있는 색만 고를 수 있음. 1~2개.
+function openColorPick() {
+  const C = t("color"); const worn = wornTopsBottoms();
+  const cand = candidates().filter((i) => CORE.includes(slotOf(i)) && !worn.has(i.id));
+  const fams = FAM_ORDER.map((k) => ({ k, n: cand.filter((i) => famOf(i) === k), all: clothesOf(items).concat(items.filter((i) => i.category === "shoes")).filter((i) => famOf(i) === k) })).filter((f) => f.all.length);
+  let sel = colorsNow().filter((k) => fams.some((f) => f.k === k && f.n.length));
+  const sw = (L) => { const s = byFam(L); return [s[0], s[Math.floor(s.length / 2)], s[s.length - 1]].filter(Boolean).map((i) => `<i style="background:${esc(i.color_hex || "#999")}"></i>`).join(""); };
+  const draw = () => {
+    openModal(`<h2>${C.title}</h2><p class="muted small">${C.sub}</p>
+      <div class="cfams">${fams.map((f) => `<button data-ck="${f.k}" class="${sel.includes(f.k) ? "on" : ""}" ${f.n.length ? "" : "disabled"}><span class="sw">${sw(f.n.length ? f.n : f.all)}</span><span class="nm">${t("fams")[f.k]}</span><b class="n">${f.n.length}</b></button>`).join("")}</div>
+      <button class="btn pri big" id="cp-go" ${sel.length ? "" : "disabled"}>${sel.length ? esc(C.go(withRo(famNames(sel)))) : C.pick}</button>`, "sheet");
+    $("modal").querySelectorAll("[data-ck]").forEach((b) => (b.onclick = () => { const k = b.dataset.ck; sel = sel.includes(k) ? sel.filter((x) => x !== k) : [...sel, k].slice(-2); draw(); }));
+    $("cp-go").onclick = () => { closeModal(); startColors(sel); };
+  };
+  draw();
+}
+async function startColors(keys) {
+  const old = rec, oldColors = colorsNow();
+  setColors(keys);
+  let cached = null; try { cached = JSON.parse(localStorage.getItem(recKey())); } catch {}
+  if (cached && (cached.outfits || []).some((o) => o && o.items.every(byId))) { rec = cached; drawRec(); return window.scrollTo(0, 0); }
+  $("td-body").innerHTML = headHtml() + `<div class="empty"><b>${esc(t("color").making(withRo(famNames(keys))))}</b></div>`; bindHead(); window.scrollTo(0, 0);
+  const want = recKey();
+  let r; try { r = await recommend(); } catch (e) { r = { error: e.message }; }
+  if (want !== recKey()) return;
+  if (r.error) { setColors(oldColors); rec = old; toast(r.error, 4000); return rec ? drawRec() : renderToday(); }
+  rec = r; persistRec(); drawRec();
 }
 async function pauseFromToday(it) {
   const prev = it.status; it.status = "paused";
@@ -1625,7 +1678,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.1</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.2</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
