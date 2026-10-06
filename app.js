@@ -880,6 +880,10 @@ const sid = (i) => i.import_id || i.id.slice(0, 8);
 let occ = settings.get().occ || "dinner";
 const needOuter = () => !!weather && weather.am < 17;
 const isCold = () => !!weather && weather.am <= 8;
+// 낮 최고 22° 이상이면 안에 입는 옷(상의·원피스)은 두께 2 이하. 아침 추위는 벗을 수 있는 겉옷이 맡는다 (2026-10-06, 사용자 승인)
+const HOT_HI = 22, HOT_TOP_MAX = 2;
+const hotDay = () => !!weather && (weather.hi ?? weather.pm) >= HOT_HI;
+const tooWarmTop = (i) => !!i && hotDay() && i.warmth != null && i.warmth > HOT_TOP_MAX;
 // 날짜: 오늘 또는 내일(밤에 내일 옷을 미리 준비). 저녁 8시가 지나면 내일부터 보여 줌.
 let dayOff = new Date().getHours() >= 20 ? 1 : 0;
 const targetDate = () => { const d = new Date(); d.setDate(d.getDate() + dayOff); return d; };
@@ -907,6 +911,7 @@ function candidates() {
       if (weather.pm >= 24 && i.warmth >= 4) return false;
       if (weather.am <= 8 && i.warmth <= 1) return false;
     }
+    if (s === "top" && !isFlex(i) && tooWarmTop(i)) return false;   // 가디건(둘 다)은 겉옷으로 남김 — 상의 자리는 validOutfit이 막음
     return true;
   });
 }
@@ -997,6 +1002,7 @@ function validOutfit(o) {
   if (needOuter() && !has("outer") && pool("outer").length) return false;
   // 가디건(둘 다)을 상의로 입고 그 위에 겉옷을 또 입는 조합은 추운 날에만
   if (!isCold() && has("outer") && its.some((i) => isFlex(i) && rl.get(i.id) === "top")) return false;
+  if (its.some((i) => rl.get(i.id) === "top" && tooWarmTop(i))) return false;   // 더운 낮에 두꺼운 상의
   if (rec?.pin && !o.items.includes(rec.pin)) return false;
   return true;
 }
@@ -1079,7 +1085,7 @@ async function recommend({ pin = null, avoid = [] } = {}) {
   const takenKeys = new Set([...takenNear(live(recentWear)), ...avoid].map(comboKey));
   const coreSids = (ids) => ids.map(byId).filter((i) => i && CORE.includes(slotOf(i))).map(sid);
   const taste = (saved || []).filter((r) => !takenKeys.has(comboKey(r.items || [])));
-  const wx =weather ? `${dayOff ? "Tomorrow" : "Today"} (${targetDay()}) in ${settings.home.name}: commute 07–09h ${weather.am}°C, return 17–19h ${weather.pm}°C, rain up to ${weather.rain}%.` : "Weather forecast unavailable.";
+  const wx =weather ? `${dayOff ? "Tomorrow" : "Today"} (${targetDay()}) in ${settings.home.name}: commute 07–09h ${weather.am}°C, daytime high ${weather.hi ?? weather.pm}°C, return 17–19h ${weather.pm}°C, rain up to ${weather.rain}%.` : "Weather forecast unavailable.";
   const colorRule = colors.length ? `COLOR OF THE DAY — she chose ${colors.map((k) => T.fams.en[k]).join(" and ")}. EVERY outfit (safe, vary and dare) must have ${colors.length > 1 ? "each of these colors" : "this color"} in at least one of outer / top / bottom (or dress) / shoes; outfits without it are discarded. Make it the color the outfit is built around and say so in sentence 1 of the reason. Candidates in ${colors.length > 1 ? "these colors" : "this color"}: ${colors.map((k) => `${T.fams.en[k]}: ${inColor(k).map(sid).join(", ")}`).join("; ")}. If a chosen color is one her profile says to avoid near the face, put it on the bottom, shoes or an outer worn open — not on the top.` : "";
   const ask = (no) => askStylist("recommend", { cand, pin, avoid: no.map(coreSids), tpo, occ, needOuter: needOuter(), sid, slotOf, colors, famOf }, `${PROFILE}
 ${STYLE_RULES}
@@ -1091,6 +1097,7 @@ Each outfit = one top, one bottom, one shoes${needOuter() ? ", one outer (mornin
 Items marked top|outer (cardigans) can be worn EITHER as the top OR thrown on over another top as the outer. When one is the outer, list it together with a separate top and do NOT add another outer. ${isCold() ? "It is cold, so a top|outer item may also go under a coat." : "NEVER combine a top|outer item with a blazer, jacket or coat today — such outfits are discarded."} Items in slot outer are never the only top.
 Optional: one bag, and accessories — at most one per group: acc_earring, acc_neck (necklace or scarf), acc_wrist (bracelet or ring), acc_socks${isCold() ? ", acc_gloves" : ""}. One eye-catching piece per outfit; match metal colors.
 Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes${weather && weather.am >= 17 ? " — except ankle-length trousers with loafers or sneakers, where she wears no-show socks: leave socks out" : ""}. With a skirt or dress, include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out — the app adds stockings, no-show socks or bare legs by temperature. Never socks with sandals or mules.
+${hotDay() ? `Warm afternoon (high ${weather.hi ?? weather.pm}°C): the top stays on all day, so it must be light (두께 ${HOT_TOP_MAX} or less) — knits and other thick tops are discarded. ${needOuter() ? "The outer covers the cool morning and comes off later: choose one that is easy to take off and carry." : ""}` : ""}
 ${weather && weather.rain >= 40 ? "Rain is likely: avoid suede, light canvas and sandals; prefer items marked 비OK; avoid floor-length hems." : ""}
 ${pin ? `MUST include item ${sid(pin)} (${pin.name}) in every outfit.` : ""}
 ${colorRule}
@@ -1148,6 +1155,8 @@ async function renderToday() {
     // 저장해 둔 추천이 요 며칠 입은 상의·하의를 쓰면 새로 고른다 (직접 바꿨거나 이미 입기로 한 건 그대로)
     const main = rec?.outfits?.[rec.main]; const worn = wornTopsBottoms();
     if (main && !main.edited && !isWorn(main) && main.items.some((id) => worn.has(id) && id !== rec.pin)) rec = null;
+    // 저장해 둔 추천의 상의가 낮 기온에 너무 두꺼우면 새로 고른다
+    if (rec && main && !main.edited && !isWorn(main) && main.items.some((id) => id !== rec.pin && byId(id) && slotIn(main.items, byId(id)) === "top" && tooWarmTop(byId(id)))) rec = null;
   }
   if (!rec) {
     if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
@@ -1395,7 +1404,7 @@ async function swapTo(s, next) {
   const key = comboKey(main.items);
   try {
     const its = main.items.map(byId).filter(Boolean);
-    const r = await askStylist("score", { items: its }, `${PROFILE}\n${STYLE_RULES}\n${OUTFIT_RULES}\nOccasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}\nLegs: ${legsOf(main) && legsOf(main) !== "socks" ? t("legs")[legsOf(main)][3] : "socks or trousers"}. Score this outfit she put together herself. Items:\n${its.map(candLine).join("\n")}\nReturn JSON {"score":0-100,"top":44-56,"reason_ko":"","reason_en":"","tip_ko":"","tip_en":""}`);
+    const r = await askStylist("score", { items: its }, `${PROFILE}\n${STYLE_RULES}\n${OUTFIT_RULES}\nOccasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, daytime high ${weather.hi ?? weather.pm}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}\nLegs: ${legsOf(main) && legsOf(main) !== "socks" ? t("legs")[legsOf(main)][3] : "socks or trousers"}. Score this outfit she put together herself. Items:\n${its.map(candLine).join("\n")}\nReturn JSON {"score":0-100,"top":44-56,"reason_ko":"","reason_en":"","tip_ko":"","tip_en":""}`);
     if (comboKey(main.items) !== key) return;
     Object.assign(main, { score: Number(r.score) || null, top: Math.min(60, Math.max(40, Number(r.top) || 50)), reason: { ko: r.reason_ko || "", en: r.reason_en || "" }, tip: { ko: r.tip_ko || "", en: r.tip_en || "" } });
   } catch (e) { main.reason = { ko: t("rescoreFail"), en: "Couldn't re-score." }; }
@@ -1720,7 +1729,7 @@ function openSettings() {
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.3</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.4</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
