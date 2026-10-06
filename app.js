@@ -87,7 +87,12 @@ const T = {
     ko: { title: "입어 보니 어땠어요?", ask: (d) => `${d} 코디, 어땠어요?`, write: "후기 쓰기", edit: "고치기", good: "좋았어요", ok: "그저 그랬어요", bad: "별로였어요", memo: "한 줄 메모", memoOpt: "안 써도 돼요", memoPh: "예: 오후에 더웠어요. 신발이 불편했어요.", pick: "어땠는지 하나 골라 주세요", save: "후기 저장", saved: "후기를 저장했어요", savedBad: "후기를 저장했어요. 이 조합은 다시 추천하지 않아요", log: "입은 기록", none: "아직 입은 기록이 없어요. '이렇게 입을게요'를 누르면 여기에 쌓여요.", noReview: "후기 없음", loadFail: "입은 기록을 불러오지 못했어요" },
     en: { title: "How did it go?", ask: (d) => `How was the ${d} outfit?`, write: "Add a note", edit: "Edit", good: "Liked it", ok: "So-so", bad: "Didn't like it", memo: "Short note", memoOpt: "optional", memoPh: "e.g. Too warm in the afternoon. Shoes hurt.", pick: "Pick one first", save: "Save", saved: "Saved", savedBad: "Saved. This outfit won't be suggested again", log: "Worn log", none: "Nothing logged yet. Outfits you choose to wear show up here.", noReview: "No note", loadFail: "Couldn't load the log" },
   },
-  wearToast: { ko: "입기로 기록했어요", en: "Logged as worn" }, unwearToast: { ko: "입기로 한 것을 취소했어요", en: "Unmarked" }, banToast: { ko: "이 조합은 다시 추천하지 않아요", en: "Won't suggest this again" },
+  wearToast: { ko: "입기로 기록했어요", en: "Logged as worn" }, unwearToast: { ko: "입기로 한 것을 취소했어요", en: "Unmarked" }, banToast: { ko: "이 상의·하의 짝은 다시 추천하지 않아요", en: "Won't pair this top and bottom again" },
+  noMore: { ko: "오늘 본 것과 다른 상의·하의가 더 없어요.", en: "No tops or bottoms left that you haven't seen today." },
+  bans: {
+    ko: { open: "그만 보기한 조합", title: "그만 보기한 조합", none: "그만 보기한 조합이 없어요.", note: "이 상의·하의 짝은 추천에 나오지 않아요.", undo: "다시 추천해도 돼요", undone: "다시 추천할 수 있게 했어요", fail: "바꾸지 못했어요. 다시 시도해 주세요." },
+    en: { open: "Hidden pairs", title: "Hidden pairs", none: "No hidden pairs.", note: "These top-and-bottom pairs are left out of suggestions.", undo: "Suggest again", undone: "It can be suggested again", fail: "Couldn't change it. Try again." },
+  },
   making: { ko: ["오늘 코디 준비 중", (n) => `옷 ${n}개로 조합을 짜고 있어요.`], en: ["Getting today ready", (n) => `Building from ${n} items.`] },
   cant: { ko: "아직 추천할 수 없어요", en: "Can't suggest yet" }, retry: { ko: "다시 시도", en: "Try again" }, allGone: { ko: "오늘 추천을 모두 뺐어요", en: "All picks dismissed" },
   lack: { ko: (s) => `${s}이(가) 부족해요. 옷장에서 '입는 곳' 표시를 확인해 주세요.`, en: (s) => `Missing: ${s}. Check where each item is worn.` },
@@ -1008,9 +1013,12 @@ function validOutfit(o) {
 }
 const coreDiff = (a, b) => CORE.filter((s) => (itemIn(a, s)?.id || null) !== (itemIn(b, s)?.id || null));
 // 반복 금지: 앞뒤 5일 안에 "입을게요"로 기록한 옷 중 상의·하의(원피스 포함)는 후보에서 뺀다. 아우터·신발은 겹쳐도 된다.
-// "입을게요"를 누르지 않은 추천은 입지 않은 것으로 본다. "전부 다시 골라 줘"로 본 조합과는 2칸 이상 달라야 한다(tooClose).
+// "입을게요"를 누르지 않은 추천은 입지 않은 것으로 본다. "전부 다시 골라 줘"로 본 조합과는 2칸 이상 달라야 하고(tooClose),
+// 그날 이미 본 조합의 상의·하의는 후보에서 뺀다(2026-10-06). "그만 보기"는 상의·하의 짝(원피스는 그 한 벌)을 막는다(pairKey).
 const REPEAT_DAYS = 5;
 const tooClose = (o, ids) => coreDiff(o, { items: ids }).length < 2;
+const tbIds = (ids) => { const r = roles(ids); return ids.filter((id) => { const s = r.get(id); return s === "top" || s === "bottom"; }); };
+const pairKey = (ids) => [...new Set(tbIds(ids))].sort().join("|");
 function takenNear(logRows) {
   const T = targetDay(); const near = (day) => day !== T && Math.abs(new Date(day) - new Date(T)) / 864e5 <= REPEAT_DAYS;
   const out = (logRows || []).filter((r) => near(r.worn_on)).map((r) => r.items || []);
@@ -1061,10 +1069,11 @@ async function askStylist(kind, payload, prompt) {
 }
 async function recommend({ pin = null, avoid = [] } = {}) {
   const worn = wornTopsBottoms();
-  const cand = candidates().filter((i) => !worn.has(i.id) || i.id === pin?.id);
+  const seen = new Set(avoid.flatMap(tbIds));   // "전부 다시 골라 줘": 오늘 이미 본 상의·하의는 빼고 고른다
+  const cand = candidates().filter((i) => (!worn.has(i.id) && !seen.has(i.id)) || i.id === pin?.id);
   const have = (c) => cand.some((i) => slotOf(i) === c);
   const lack = ["top", "shoes"].filter((c) => !have(c)); if (!have("bottom") && !cand.some((i) => i.category === "dress")) lack.push("bottom");
-  if (lack.length) return { error: t("lack")(lack.map((s) => t("slot")[s]).join("·")) };
+  if (lack.length) return { error: seen.size && lack.every((s) => s !== "shoes") ? t("noMore") : t("lack")(lack.map((s) => t("slot")[s]).join("·")) };
   const colors = colorsNow();
   const inColor = (k) => cand.filter((i) => CORE.includes(slotOf(i)) && famOf(i) === k);
   const noCol = colors.find((k) => !inColor(k).length);
@@ -1080,7 +1089,9 @@ async function recommend({ pin = null, avoid = [] } = {}) {
   const reviews = live(rated).filter((r) => r.rating);
   const short = (rows) => (rows || []).map((r) => (r.items || []).map((x) => { const it = byId(x); return it ? sid(it) : null; }).filter(Boolean));
   const known = new Set([...live(recentWear), ...(saved || [])].map((r) => comboKey(r.items || [])));
-  const bannedKeys = new Set([...(banned || []), ...reviews.filter((r) => r.rating === "bad")].map((r) => comboKey(r.items || [])));
+  const bannedKeys = new Set(reviews.filter((r) => r.rating === "bad").map((r) => comboKey(r.items || [])));
+  const bannedPairs = new Set((banned || []).map((r) => pairKey(r.items || [])).filter(Boolean));
+  const bannedShort = (banned || []).map((r) => tbIds(r.items || []).map((id) => sid(byId(id)))).filter((p) => p.length);
   const taken = [...avoid];
   const takenKeys = new Set([...takenNear(live(recentWear)), ...avoid].map(comboKey));
   const coreSids = (ids) => ids.map(byId).filter((i) => i && CORE.includes(slotOf(i))).map(sid);
@@ -1103,9 +1114,9 @@ ${pin ? `MUST include item ${sid(pin)} (${pin.name}) in every outfit.` : ""}
 ${colorRule}
 Priority: her own signals (saved outfits, swaps) > weather and occasion > the body and color rules. Rules only rank; they never forbid.
 Saved combinations (her taste: the "safe" card follows this style, but is a fresh outfit, not a copy): ${JSON.stringify(short(taste).slice(0, 30))}.
-Never output these banned combinations: ${JSON.stringify(short(banned))}.
+${bannedShort.length ? `She hid these top-and-bottom pairs (a single id = a dress): never put them together again, whatever the outer and shoes: ${JSON.stringify(bannedShort)}.` : ""}
 ${reviews.length ? `Her own reviews after wearing — the strongest signal, notes are in Korean. "bad": never return that combination and avoid what the note complains about. "good": build on what worked. ${JSON.stringify(reviews.map((r) => ({ items: coreSids(r.items || []), rating: r.rating, note: r.note ? String(r.note).slice(0, 200) : undefined })))}.` : ""}
-Tops, bottoms and dresses she wore in the last few days are already left out of the candidates; outers and shoes may repeat.
+Tops, bottoms and dresses she wore in the last few days${seen.size ? " or already saw suggested today" : ""} are already left out of the candidates; outers and shoes may repeat.
 ${no.length ? `These outfits were just shown to her. EVERY outfit you return must differ from EACH of them in at least TWO of outer/top/bottom/shoes: ${JSON.stringify(no.map(coreSids))}.` : ""}
 
 Return JSON only:
@@ -1128,7 +1139,7 @@ ${cand.map(candLine).join("\n")}`);
   let list = [], repeated = [];
   for (let n = 0; n < 2 && !list.some(Boolean); n++) {
     const out = await ask([...taken, ...repeated]);
-    const ok = (out.outfits || []).map(norm).map((o) => o && { ...o, items: fixAccessories(o.items) }).map((o) => (o && validOutfit(o) && !bannedKeys.has(comboKey(o.items)) && colorHit(o, colors) ? o : null));
+    const ok = (out.outfits || []).map(norm).map((o) => o && { ...o, items: fixAccessories(o.items) }).map((o) => (o && validOutfit(o) && !bannedKeys.has(comboKey(o.items)) && !bannedPairs.has(pairKey(o.items)) && colorHit(o, colors) ? o : null));
     list = ok.map((o) => (o && !taken.some((ids) => tooClose(o, ids)) ? o : null));
     repeated = ok.filter((o, i) => o && !list[i]).map((o) => o.items);
   }
@@ -1547,15 +1558,45 @@ function wearMain() {
 }
 function banMain() {
   const main = rec.outfits[rec.main]; const snap = JSON.stringify(rec); const ids = [...main.items];
-  rec.outfits[rec.main] = null; rec.main = rec.outfits.findIndex(Boolean); persistRec(); drawRec();
+  const pk = pairKey(ids);   // 같은 상의·하의 짝인 다른 안(변주 등)도 같이 치운다
+  rec.outfits = rec.outfits.map((o, k) => (o && (k === rec.main || (pk && pairKey(o.items) === pk)) ? null : o));
+  rec.main = rec.outfits.findIndex(Boolean); persistRec(); drawRec();
   const cancel = later(async () => {
     await sb.from("outfits").insert({ owner: me.id, tpo: tpo === "special" ? "formal" : tpo, kind: main.kind, items: ids, score: main.score, reason: LX(main.reason), banned: true });
     await sb.from("feedback").insert({ owner: me.id, kind: "ban", context: { items: ids, tpo } });
   });
   toast(t("banToast"), () => { cancel(); rec = JSON.parse(snap); persistRec(); drawRec(); });
 }
+// 그만 보기한 조합: 설정에서 열고, 짝마다 "다시 추천해도 돼요"로 풀어 준다(banned → false). 같은 짝의 기록은 한 장으로 묶음.
+async function openBanList() {
+  const B = t("bans");
+  const { data, error } = await sb.from("outfits").select("id, items, created_at").eq("banned", true);
+  if (error) return toast(B.fail);
+  const groups = new Map();
+  (data || []).forEach((r) => {
+    const k = pairKey(r.items || []); if (!k) return;
+    const g = groups.get(k) || { rows: [], at: "", items: k.split("|").map(byId).sort((a, b) => (slotOf(a) === "bottom") - (slotOf(b) === "bottom")) };
+    g.rows.push(r.id); if ((r.created_at || "") > g.at) g.at = r.created_at || ""; groups.set(k, g);
+  });
+  const list = [...groups.values()].sort((a, b) => b.at.localeCompare(a.at));
+  await signUrls(list.flatMap((g) => g.items.flatMap((i) => [i.thumb_path, i.cut_path])).filter(Boolean));
+  const card = (g, n) => `<div class="wcard">
+      <div class="hd"><b>${g.at ? dayLabel(new Date(g.at).toLocaleDateString("sv-SE")).replace(/(\d+)/g, '<span class="n">$1</span>') : ""}</b></div>
+      <div class="sheet2">${g.items.map((i) => { const cut = i.cut_path && urlCache.get(i.cut_path); return `<div><div class="ph">${thumbOf(i) ? `<img class="${cut ? "cut" : "raw"}" src="${esc(thumbOf(i))}" alt="" loading="lazy">` : ""}</div><div class="nm">${esc(nameOf(i))}</div></div>`; }).join("")}</div>
+      <button class="btn line" data-unban="${n}" style="margin-top:10px">${B.undo}</button>
+    </div>`;
+  openModal(`<div class="page-head"><button class="back" id="bl-back" aria-label="${t("back")}">${icon("i-back")}</button><div class="h1">${B.title}</div></div>
+    ${list.length ? `<p class="muted small">${B.note}</p><div class="wlog">${list.map(card).join("")}</div>` : `<p class="muted small" style="padding:16px 0">${B.none}</p>`}`, "page");
+  $("bl-back").onclick = () => { closeModal(); openSettings(); };
+  $("modal").querySelectorAll("[data-unban]").forEach((b) => (b.onclick = async () => {
+    b.disabled = true;
+    const { error: e } = await sb.from("outfits").update({ banned: false }).in("id", list[Number(b.dataset.unban)].rows);
+    if (e) { b.disabled = false; return toast(B.fail); }
+    toast(B.undone); openBanList();
+  }));
+}
 
-if (MOCK) window.__app = { fixAccessories, validOutfit, candidates, slotOf, swapTo, get items() { return items; }, get rec() { return rec; }, set weather(w) { weather = w; }, set tpo(v) { tpo = v; }, set occ(v) { occ = v; } };
+if (MOCK) window.__app = { fixAccessories, validOutfit, candidates, slotOf, swapTo, pairKey, openBanList, recommend, get items() { return items; }, get rec() { return rec; }, set weather(w) { weather = w; }, set tpo(v) { tpo = v; }, set occ(v) { occ = v; } };
 
 // ─────────────────────────────────────────── 구매 (v5: 상품 사진 + 상세 페이지 캡처 → 치수 칸 → 판정 + 옷장 판정)
 // 숫자 칸이 최종 근거. 캡처에서 읽은 값은 카멜색으로 채우고, 사용자가 고치면 보통 색으로 돌아간다.
@@ -1728,8 +1769,9 @@ function openSettings() {
     <div class="modal-row"><label class="field" style="flex:1;margin:0">${S.lat}<input type="text" id="st-lat" inputmode="decimal" value="${h.lat}"></label><label class="field" style="flex:1;margin:0">${S.lon}<input type="text" id="st-lon" inputmode="decimal" value="${h.lon}"></label></div>
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
+    <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.4</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.5</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
@@ -1759,6 +1801,7 @@ function openSettings() {
     if (!$("tab-today").hidden) renderToday();
   };
   $("st-logout").onclick = () => sb.auth.signOut();
+  $("st-bans").onclick = () => { closeModal(); openBanList(); };
   $("st-export").onclick = async () => {
     const [o, w, f] = await Promise.all([sb.from("outfits").select("*"), sb.from("wear_log").select("*"), sb.from("feedback").select("*")]);
     const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), items, outfits: o.data, wear_log: w.data, feedback: f.data }, null, 2)], { type: "application/json" });
