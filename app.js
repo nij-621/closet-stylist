@@ -889,6 +889,10 @@ const isCold = () => !!weather && weather.am <= 8;
 const HOT_HI = 22, HOT_TOP_MAX = 2;
 const hotDay = () => !!weather && (weather.hi ?? weather.pm) >= HOT_HI;
 const tooWarmTop = (i) => !!i && hotDay() && i.warmth != null && i.warmth > HOT_TOP_MAX;
+// 출근 시간 15° 미만이면 한여름용(두께 1 또는 계절 "여름"만) 하의·원피스·신발은 뺀다 (2026-10-07, 사용자 결정 — 12° 아침에 얇은 7부 바지 추천)
+const COOL_AM = 15;
+const tooThinLower = (i) => !!i && !!weather && weather.am < COOL_AM && ["bottom", "dress", "shoes"].includes(i.category)
+  && (i.warmth === 1 || (i.season?.length === 1 && i.season[0] === "summer"));
 // 날짜: 오늘 또는 내일(밤에 내일 옷을 미리 준비). 저녁 8시가 지나면 내일부터 보여 줌.
 let dayOff = new Date().getHours() >= 20 ? 1 : 0;
 const targetDate = () => { const d = new Date(); d.setDate(d.getDate() + dayOff); return d; };
@@ -917,6 +921,7 @@ function candidates() {
       if (weather.am <= 8 && i.warmth <= 1) return false;
     }
     if (s === "top" && !isFlex(i) && tooWarmTop(i)) return false;   // 가디건(둘 다)은 겉옷으로 남김 — 상의 자리는 validOutfit이 막음
+    if (tooThinLower(i)) return false;
     return true;
   });
 }
@@ -1008,6 +1013,7 @@ function validOutfit(o) {
   // 가디건(둘 다)을 상의로 입고 그 위에 겉옷을 또 입는 조합은 추운 날에만
   if (!isCold() && has("outer") && its.some((i) => isFlex(i) && rl.get(i.id) === "top")) return false;
   if (its.some((i) => rl.get(i.id) === "top" && tooWarmTop(i))) return false;   // 더운 낮에 두꺼운 상의
+  if (its.some(tooThinLower)) return false;   // 쌀쌀한 아침에 한여름 하의·원피스·신발
   if (rec?.pin && !o.items.includes(rec.pin)) return false;
   return true;
 }
@@ -1168,6 +1174,8 @@ async function renderToday() {
     if (main && !main.edited && !isWorn(main) && main.items.some((id) => worn.has(id) && id !== rec.pin)) rec = null;
     // 저장해 둔 추천의 상의가 낮 기온에 너무 두꺼우면 새로 고른다
     if (rec && main && !main.edited && !isWorn(main) && main.items.some((id) => id !== rec.pin && byId(id) && slotIn(main.items, byId(id)) === "top" && tooWarmTop(byId(id)))) rec = null;
+    // 저장해 둔 추천에 쌀쌀한 아침인데 한여름 하의·원피스·신발이 있으면 새로 고른다
+    if (rec && main && !main.edited && !isWorn(main) && main.items.some((id) => id !== rec.pin && tooThinLower(byId(id)))) rec = null;
   }
   if (!rec) {
     if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
@@ -1771,7 +1779,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.5</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.6</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
