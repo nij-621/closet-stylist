@@ -81,6 +81,10 @@ const T = {
   pinning: { ko: (n) => `${n} 기준으로 다시 짜는 중`, en: (n) => `Rebuilding around ${n}` }, pinnedToast: { ko: (n) => `${n} 고정했어요`, en: (n) => `Pinned ${n}` }, unpinned: { ko: "고정을 풀었어요", en: "Unpinned" },
   swapPin: { ko: "고정한 옷이에요. 고정을 먼저 풀어 주세요.", en: "This one is pinned. Unpin it first." }, noSwap: { ko: "바꿀 옷이 없어요", en: "Nothing to swap in" },
   rescoring: { ko: "다시 살펴보는 중…", en: "Re-scoring…" }, rescoreFail: { ko: "다시 살펴보지 못했어요. 조합은 그대로 입을 수 있어요.", en: "Couldn't re-score." },
+  jg: {
+    ko: { btn: "이 조합 봐 줘", title: "이 조합, 솔직하게", busy: "살펴보는 중…", v: { good: "좋아요", ok: "괜찮아요", weak: "아쉬워요" }, good: "좋은 점", issue: "걸리는 점", swapH: "한 칸만 바꾼다면", go: "이걸로 바꾸기", keep: "그대로 입을게요", noSwap: "바꿀 만한 옷이 옷장에 없어요." },
+    en: { btn: "Rate this outfit", title: "This outfit, honestly", busy: "Looking…", v: { good: "Good", ok: "Fine", weak: "Not quite" }, good: "Works", issue: "Holds it back", swapH: "If you change one piece", go: "Swap it in", keep: "Keep as is", noSwap: "Nothing in your closet would fix it." },
+  },
   redoing: { ko: "다른 조합을 짜는 중", en: "Finding other options" }, redone: { ko: "새 조합이에요", en: "New options" },
   noNew: { ko: "요 며칠 입은 것과 다른 조합을 찾지 못했어요. 잠시 뒤 다시 시도해 주세요.", en: "Couldn't find an outfit different from the last few days. Try again shortly." },
   rv: {
@@ -1334,6 +1338,7 @@ function drawRec() {
     ${main.edited && main.tag ? `<div class="meta"><span>${t("edited")} · ${esc(LX(main.tag))}</span></div>` : ""}
     <div class="why">${esc(LX(main.reason))}</div>
     ${LX(main.tip) ? `<div class="why tipline">${esc(LX(main.tip))}</div>` : ""}
+    <button class="btn line jgbtn" id="td-judge">${main.judge?.key === comboKey(main.items) ? `<b>${t("jg").v[main.judge.verdict]}</b> · ` : ""}${t("jg").btn}${icon("i-chev", "i xs")}</button>
     <div class="alts"><h4>${t("alts")}</h4>${alts.map(([o, i]) => {
       if (!o) return `<div class="alt blank"><div class="th"><span class="ph"></span></div><div class="tx"><b>${K.dare} · ${t("dareEmpty")[0]}</b><span>${t("dareEmpty")[1]}</span></div></div>`;
       const d = coreDiff(o, main); const its = d.map((s) => itemIn(o, s)).filter(Boolean).slice(0, 3);
@@ -1350,7 +1355,7 @@ function drawRec() {
   body.querySelectorAll("[data-legs]").forEach((b) => (b.onclick = () => pickLegs()));
   body.querySelectorAll("[data-add]").forEach((b) => (b.onclick = () => swapTo(b.dataset.add, pool(b.dataset.add)[0])));
   body.querySelectorAll("[data-xslot]").forEach((b) => (b.onclick = () => (b.dataset.id ? openItemSheet(b.dataset.xslot, byId(b.dataset.id)) : pickExtra(b.dataset.xslot))));
-  $("td-wear").onclick = wearMain; $("td-ban").onclick = banMain; $("td-redo").onclick = redo; $("td-log").onclick = openWearLog;
+  $("td-wear").onclick = wearMain; $("td-ban").onclick = banMain; $("td-redo").onclick = redo; $("td-log").onclick = openWearLog; $("td-judge").onclick = openJudge;
   $("td-color").onclick = openColorPick; const cx = $("td-color-x"); if (cx) cx.onclick = () => { setColors([]); rec = null; renderToday(); };
   body.querySelectorAll("[data-rv]").forEach((b) => (b.onclick = () => openWearReview(wears.find((w) => String(w.id) === b.dataset.rv))));
   const tb = $("td-buy"); if (tb) tb.onclick = () => showTab("judge");
@@ -1428,6 +1433,55 @@ async function swapTo(s, next) {
     Object.assign(main, { score: Number(r.score) || null, top: Math.min(60, Math.max(40, Number(r.top) || 50)), reason: { ko: r.reason_ko || "", en: r.reason_en || "" }, tip: { ko: r.tip_ko || "", en: r.tip_en || "" } });
   } catch (e) { main.reason = { ko: t("rescoreFail"), en: "Couldn't re-score." }; }
   persistRec(); if (!$("tab-today").hidden) drawRec();
+}
+// 이 조합 봐 줘 (2026-10-07, 사용자 결정): 오늘 화면의 지금 조합을 솔직하게 판정하고, 가장 걸리는 칸 하나를 옷장 후보로 바꾼 대안을 보여 줌.
+// 결과는 조합(comboKey)마다 main.judge에 캐시 — 옷을 바꾸면 다시 물음.
+async function openJudge() {
+  const main = rec.outfits[rec.main]; if (!main) return;
+  const J = t("jg"); const key = comboKey(main.items);
+  const show = (j) => {
+    const cur = j.swap && itemIn(main, j.swap.slot); const nx = j.swap && byId(j.swap.id);
+    openModal(`<p class="sheet-k">${J.title}</p>
+      <div class="by-verdict"><span class="w jg-${j.verdict}">${J.v[j.verdict]}</span></div>
+      <div class="by-ev jg">${LX(j.good) ? `<div><span>${J.good}</span><p>${esc(LX(j.good))}</p></div>` : ""}${LX(j.issue) ? `<div><span>${J.issue}</span><p>${esc(LX(j.issue))}</p></div>` : ""}</div>
+      ${nx ? `<h3 class="by-h">${J.swapH}</h3>
+        <div class="jg-swap">${cur ? `<img src="${esc(thumbOf(cur))}" alt="">${icon("i-chev", "i s")}` : ""}<img src="${esc(thumbOf(nx))}" alt=""><div class="tx"><b>${t("slot")[j.swap.slot]} · ${esc(nameOf(nx))}</b><span>${esc(LX(j.swap.why))}</span></div></div>
+        <button class="btn pri big" id="jg-go">${J.go}</button>` : j.verdict !== "good" ? `<p class="by-note">${J.noSwap}</p>` : ""}
+      <button class="btn line big" id="jg-keep" style="margin-top:8px">${J.keep}</button>`, "sheet");
+    $("jg-keep").onclick = closeModal;
+    const go = $("jg-go"); if (go) go.onclick = () => { closeModal(); swapTo(j.swap.slot, nx); };
+  };
+  if (main.judge?.key === key) return show(main.judge);
+  openModal(`<p class="sheet-k">${J.title}</p><p class="by-note" id="jg-busy">${J.busy}</p>`, "sheet");
+  try {
+    if (!MOCK && !PROFILE) { await loadProfile(); if (!PROFILE) throw new Error(t("noProfile")); }
+    const its = main.items.map(byId).filter(Boolean);
+    const worn = wornTopsBottoms();
+    const alt = candidates().filter((i) => CORE.includes(slotOf(i)) && !main.items.includes(i.id) && !worn.has(i.id));
+    const r = await askStylist("verdict", { items: its, alt, sid, slotOf }, `${PROFILE}
+${OUTFIT_RULES}
+Occasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, daytime high ${weather.hi ?? weather.pm}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}
+Legs: ${legsOf(main) && legsOf(main) !== "socks" ? t("legs")[legsOf(main)][3] : "socks or trousers"}.
+She put this outfit together and asks for an HONEST verdict, not encouragement. Judge it as her stylist would: body proportion, color near the face, the occasion and the weather.
+- verdict: "good" = wear it as is; "ok" = wearable, but one thing holds it back; "weak" = one piece clearly works against her body, her face colors, the occasion or the weather.
+- good_ko: ONE thing that works, naming the item. issue_ko: the ONE thing that holds it back most, naming the item and the concrete reason. For "good", issue_ko may be a small refinement or "".
+- swap: for "ok" and "weak", pick ONE replacement for the piece named in issue_ko from the alternatives below (same slot; an item marked top|outer may replace the outer). why_ko = what it fixes, in one sentence. For "good", swap may be null. If no alternative fixes it, swap is null.
+- Plain Korean (해요체), one idea per sentence, no jargon (never: 3:7, BEST, 완충, 톤온톤, 실루엣, 세로선). Be direct — "아쉬워요", "~ 때문에 ~해 보여요" are fine — but never harsh about her body.
+Outfit:
+${its.map(candLine).join("\n")}
+Alternatives (id | slot | name | ...):
+${alt.map(candLine).join("\n")}
+Return JSON only: {"verdict":"good|ok|weak","good_ko":"","good_en":"","issue_ko":"","issue_en":"","swap":{"slot":"outer|top|bottom|shoes","id":"","why_ko":"","why_en":""} or null}`);
+    if (comboKey(main.items) !== key) return;
+    const s = r.swap && alt.find((i) => sid(i) === String(r.swap.id).trim());
+    const slot = r.swap && String(r.swap.slot);
+    const okSwap = s && CORE.includes(slot) && (slotOf(s) === slot || (slot === "outer" && isFlex(s))) && (slot === "outer" || !!itemIn(main, slot));
+    main.judge = { key, verdict: ["good", "ok", "weak"].includes(r.verdict) ? r.verdict : "ok",
+      good: { ko: r.good_ko || "", en: r.good_en || "" }, issue: { ko: r.issue_ko || "", en: r.issue_en || "" },
+      swap: okSwap ? { slot, id: s.id, why: { ko: r.swap.why_ko || "", en: r.swap.why_en || "" } } : null };
+    persistRec(); drawRec();
+    if ($("jg-busy")) show(main.judge);
+  } catch (e) { if ($("jg-busy")) $("jg-busy").textContent = e.message || String(e); }
 }
 const nameOfEn = (i) => i.name_en || i.name;
 function pickLegs() {
@@ -1779,7 +1833,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.6</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.7</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
