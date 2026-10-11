@@ -97,8 +97,8 @@ const T = {
     ko: { open: "그만 보기한 조합", title: "그만 보기한 조합", none: "그만 보기한 조합이 없어요.", note: "이 상의·하의 짝은 추천에 나오지 않아요.", undo: "다시 추천해도 돼요", undone: "다시 추천할 수 있게 했어요", fail: "바꾸지 못했어요. 다시 시도해 주세요." },
     en: { open: "Hidden pairs", title: "Hidden pairs", none: "No hidden pairs.", note: "These top-and-bottom pairs are left out of suggestions.", undo: "Suggest again", undone: "It can be suggested again", fail: "Couldn't change it. Try again." },
   },
-  start: { ko: "코디 시작", en: "Start styling" },
-  making: { ko: ["오늘 코디 준비 중", (n) => `옷 ${n}개로 조합을 짜고 있어요.`], en: ["Getting today ready", (n) => `Building from ${n} items.`] },
+  start: { ko: ["코디 시작", "1~2분쯤 걸려요"], en: ["Start styling", "Takes a minute or two"] },
+  making: { ko: ["코디를 고르는 중", "다른 탭을 봐도 괜찮아요"], en: ["Picking your outfit", "Feel free to look at other tabs"] },
   cant: { ko: "아직 추천할 수 없어요", en: "Can't suggest yet" }, retry: { ko: "다시 시도", en: "Try again" }, allGone: { ko: "오늘 추천을 모두 뺐어요", en: "All picks dismissed" },
   lack: { ko: (s) => `${s}이(가) 부족해요. 옷장에서 '입는 곳' 표시를 확인해 주세요.`, en: (s) => `Missing: ${s}. Check where each item is worn.` },
   noProfile: { ko: "내 체형 기준을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.", en: "Couldn't load your fit profile. Try again shortly." },
@@ -1200,8 +1200,12 @@ async function renderToday({ go = false } = {}) {
   if (!rec) {
     if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
     // 추천은 1~2분 걸려서 저절로 만들지 않고 "코디 시작"을 눌러야 시작 (저장해 둔 추천은 바로 보임)
-    if (!go) { body.innerHTML = headHtml() + `<button class="btn pri big" id="td-start">${t("start")}</button>`; bindHead(); $("td-start").onclick = () => renderToday({ go: true }); return; }
-    body.innerHTML = headHtml() + `<div class="empty"><b>${t("making")[0]}</b>${t("making")[1](candidates().length)}</div>`; bindHead();
+    // 결과와 같은 자리·같은 모양(2×2 + 입기 버튼 자리)으로 미리 보여 주고, 기다리는 동안 같은 칸이 깜빡임
+    const ghost = (wait) => { const [btn, hint] = t(wait ? "making" : "start");
+      return headHtml() + `<div class="stage"><div class="stack ghost ${wait ? "wait" : ""}">${["outer", "top", "bottom", "shoes"].map((s) => `<div class="cell"><div class="slot empty-slot"></div><span class="k">${t("slot")[s]}</span><span class="nm"></span></div>`).join("")}</div></div>
+        <div class="acts"><button class="btn pri big" id="td-start" ${wait ? "disabled" : ""}>${btn}</button><p class="td-hint">${hint}</p></div>`; };
+    if (!go) { body.innerHTML = ghost(false); bindHead(); $("td-start").onclick = () => renderToday({ go: true }); return; }
+    body.innerHTML = ghost(true); bindHead();
     const want = recKey();
     let r; try { r = await recommend(); } catch (e) { r = { error: e.message }; }
     if (want !== recKey()) return;                                   // 기다리는 사이 다른 탭으로 바꿈
@@ -1851,7 +1855,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.9</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.10</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {

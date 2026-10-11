@@ -629,4 +629,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .jg-swap .tx b { display: block; font-weight: 600; }
 .jg-swap .tx span { display: block; color: var(--ink2); word-break: keep-all; }
 .by-ev.jg div span { width: 64px; }
-#td-start { width: 100%; height: 52px; margin-top: 20px; font-size: 16px; }
+/* 코디 시작 전·고르는 중: 결과 격자와 같은 자리에 빈 칸 */
+.stack.ghost .nm { min-height: 18px; }
+.stack.ghost.wait .slot { border-color: transparent; background: var(--well); animation: ghost 1.6s ease-in-out infinite; }
+.stack.ghost.wait .nm { width: 70%; min-height: 14px; margin-top: 4px; border-radius: 4px; background: var(--well); animation: ghost 1.6s ease-in-out infinite; }
+.stack.ghost.wait .cell:nth-child(2) > * { animation-delay: .2s; }
+.stack.ghost.wait .cell:nth-child(3) > * { animation-delay: .4s; }
+.stack.ghost.wait .cell:nth-child(4) > * { animation-delay: .6s; }
+@keyframes ghost { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .stack.ghost.wait .slot, .stack.ghost.wait .nm { animation: none; } }
+#td-start:disabled { background: var(--well); color: var(--ink2); border: 1px solid var(--line); opacity: 1; }
+.td-hint { margin-top: 8px; text-align: center; font-size: 13px; color: var(--ink3); }
