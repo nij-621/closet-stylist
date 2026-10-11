@@ -198,6 +198,8 @@ function setLang(l) {
 const SKINS = ["base", "plaid", "pc"];
 const SKIN_FONTS = { plaid: "family=Rammetto+One&family=Nanum+Pen+Script", pc: "family=VT323&family=Silkscreen" };
 const SKIN_BAR = { plaid: "#fffbf0", pc: "#8ea6d4" };
+// 홈 화면 아이콘: 아이폰은 "홈 화면에 추가" 순간의 아이콘을 저장하고 이후엔 안 바꿈 → 테마를 고른 뒤 다시 추가해야 바뀜(시안 private/icon-options.html P2·C3)
+const SKIN_ICON = { base: "icon-180.png?v=2", plaid: "icon-180-plaid.png?v=1", pc: "icon-180-pc.png?v=1" };
 let skin = SKINS.includes(localStorage.getItem("stylist.skin")) ? localStorage.getItem("stylist.skin") : "base";
 function applySkin() {
   document.documentElement.dataset.skin = skin;
@@ -208,6 +210,7 @@ function applySkin() {
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
     m.dataset.base ??= m.content; m.content = SKIN_BAR[skin] || m.dataset.base;
   });
+  const ti = document.querySelector('link[rel="apple-touch-icon"]'); if (ti) ti.setAttribute("href", SKIN_ICON[skin]);
 }
 function setSkin(k) { skin = SKINS.includes(k) ? k : "base"; localStorage.setItem("stylist.skin", skin); applySkin(); }
 applySkin();
@@ -1890,7 +1893,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.12</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.13</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
