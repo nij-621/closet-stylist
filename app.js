@@ -97,6 +97,7 @@ const T = {
     ko: { open: "그만 보기한 조합", title: "그만 보기한 조합", none: "그만 보기한 조합이 없어요.", note: "이 상의·하의 짝은 추천에 나오지 않아요.", undo: "다시 추천해도 돼요", undone: "다시 추천할 수 있게 했어요", fail: "바꾸지 못했어요. 다시 시도해 주세요." },
     en: { open: "Hidden pairs", title: "Hidden pairs", none: "No hidden pairs.", note: "These top-and-bottom pairs are left out of suggestions.", undo: "Suggest again", undone: "It can be suggested again", fail: "Couldn't change it. Try again." },
   },
+  start: { ko: "코디 시작", en: "Start styling" },
   making: { ko: ["오늘 코디 준비 중", (n) => `옷 ${n}개로 조합을 짜고 있어요.`], en: ["Getting today ready", (n) => `Building from ${n} items.`] },
   cant: { ko: "아직 추천할 수 없어요", en: "Can't suggest yet" }, retry: { ko: "다시 시도", en: "Try again" }, allGone: { ko: "오늘 추천을 모두 뺐어요", en: "All picks dismissed" },
   lack: { ko: (s) => `${s}이(가) 부족해요. 옷장에서 '입는 곳' 표시를 확인해 주세요.`, en: (s) => `Missing: ${s}. Check where each item is worn.` },
@@ -306,12 +307,27 @@ async function loadItems() {
   items = (data || []).filter((r) => !isPending(r)).sort((a, b) => ord(a) - ord(b));
   await signUrls(items.flatMap((i) => [i.thumb_path, i.cut_path]).filter(Boolean));
 }
+let signedAt = 0;  // 캐시에 든 주소 중 가장 오래된 것을 받은 시각
 async function signUrls(paths) {
   const need = paths.filter((p) => !urlCache.has(p));
   if (!need.length) return;
   const { data } = await sb.storage.from(BUCKET).createSignedUrls(need, 3600 * 6);
   (data || []).forEach((r) => r.signedUrl && urlCache.set(r.path, r.signedUrl));
+  if (!signedAt && data?.length) signedAt = Date.now();
 }
+// 아이폰은 홈 화면 앱을 멈춰 뒀다 그대로 깨움 → 6시간짜리 주소가 만료돼 사진이 깨짐.
+// 다시 보일 때 5시간이 지났으면 주소를 새로 받아 화면의 사진만 바꿔 끼움(다시 그리지 않음).
+async function refreshUrls() {
+  const prev = urlCache, prevAt = signedAt;
+  urlCache = new Map(); signedAt = 0;
+  try { await signUrls([...prev.keys()]); } catch {}
+  if (!urlCache.size) { urlCache = prev; signedAt = prevAt; return; }
+  const pathOf = new Map([...prev].map(([p, u]) => [u, p]));
+  document.querySelectorAll("img").forEach((img) => { const p = pathOf.get(img.getAttribute("src")); if (p && urlCache.has(p)) img.src = urlCache.get(p); });
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && signedAt && Date.now() - signedAt > 5 * 3600e3) refreshUrls();
+});
 // 목록·추천에는 배경을 지운 사진(있으면), 옷 상세에는 원래 사진
 const thumbOf = (it) => urlCache.get(it.cut_path) || urlCache.get(it.thumb_path) || "";
 const byId = (id) => items.find((i) => i.id === id);
@@ -1163,7 +1179,7 @@ ${cand.map(candLine).join("\n")}`);
   return { outfits: [safe, vary, dare], main: 0, pin: pin?.id || null, avoid, colors, made: Date.now() };
 }
 
-async function renderToday() {
+async function renderToday({ go = false } = {}) {
   const body = $("td-body");
   if (!weather || weather.day !== targetDay()) await loadWeather();
   await loadWears();
@@ -1183,11 +1199,13 @@ async function renderToday() {
   }
   if (!rec) {
     if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
+    // 추천은 1~2분 걸려서 저절로 만들지 않고 "코디 시작"을 눌러야 시작 (저장해 둔 추천은 바로 보임)
+    if (!go) { body.innerHTML = headHtml() + `<button class="btn pri big" id="td-start">${t("start")}</button>`; bindHead(); $("td-start").onclick = () => renderToday({ go: true }); return; }
     body.innerHTML = headHtml() + `<div class="empty"><b>${t("making")[0]}</b>${t("making")[1](candidates().length)}</div>`; bindHead();
     const want = recKey();
     let r; try { r = await recommend(); } catch (e) { r = { error: e.message }; }
     if (want !== recKey()) return;                                   // 기다리는 사이 다른 탭으로 바꿈
-    if (r.error) { rec = null; body.innerHTML = headHtml() + `<div class="empty"><b>${t("cant")}</b>${esc(r.error)}<button class="btn line" id="td-retry" style="margin-top:12px">${t("retry")}</button><button class="btn line" data-settings style="margin-top:8px">${t("needKey")[2]}</button></div>`; bindHead(); $("td-retry").onclick = () => renderToday(); return; }
+    if (r.error) { rec = null; body.innerHTML = headHtml() + `<div class="empty"><b>${t("cant")}</b>${esc(r.error)}<button class="btn line" id="td-retry" style="margin-top:12px">${t("retry")}</button><button class="btn line" data-settings style="margin-top:8px">${t("needKey")[2]}</button></div>`; bindHead(); $("td-retry").onclick = () => renderToday({ go: true }); return; }
     rec = r; persistRec();
   }
   drawRec();
@@ -1833,7 +1851,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.7</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.9</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
