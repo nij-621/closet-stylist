@@ -81,7 +81,7 @@ const T = {
   pinned: { ko: "이 옷 고정", en: "Pinned" }, unpin: { ko: "해제", en: "Unpin" }, pinBtn: { ko: "이 옷 고정", en: "Pin this item" }, unpinBtn: { ko: "고정 해제", en: "Unpin" }, pause: { ko: "당분간 제외", en: "Pause" },
   pinning: { ko: (n) => `${n} 기준으로 다시 짜는 중`, en: (n) => `Rebuilding around ${n}` }, pinnedToast: { ko: (n) => `${n} 고정했어요`, en: (n) => `Pinned ${n}` }, unpinned: { ko: "고정을 풀었어요", en: "Unpinned" },
   swapPin: { ko: "고정한 옷이에요. 고정을 먼저 풀어 주세요.", en: "This one is pinned. Unpin it first." }, noSwap: { ko: "바꿀 옷이 없어요", en: "Nothing to swap in" },
-  rescoring: { ko: "다시 살펴보는 중…", en: "Re-scoring…" }, rescoreFail: { ko: "다시 살펴보지 못했어요. 조합은 그대로 입을 수 있어요.", en: "Couldn't re-score." },
+
   jg: {
     ko: { btn: "이 조합 봐 줘", title: "이 조합, 솔직하게", busy: "살펴보는 중…", v: { good: "좋아요", ok: "괜찮아요", weak: "아쉬워요" }, good: "좋은 점", issue: "걸리는 점", swapH: "한 칸만 바꾼다면", go: "이걸로 바꾸기", keep: "그대로 입을게요", noSwap: "바꿀 만한 옷이 옷장에 없어요." },
     en: { btn: "Rate this outfit", title: "This outfit, honestly", busy: "Looking…", v: { good: "Good", ok: "Fine", weak: "Not quite" }, good: "Works", issue: "Holds it back", swapH: "If you change one piece", go: "Swap it in", keep: "Keep as is", noSwap: "Nothing in your closet would fix it." },
@@ -981,6 +981,9 @@ const colorGap = (a, b) => { const x = rgbOf(a), y = rgbOf(b); return x && y ? M
 const isDark = (i) => { const m = /^#?([0-9a-f]{6})$/i.exec(i?.color_hex || ""); if (!m) return false; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 < 0.3; };
 // 덧신(신으면 안 보이는 양말)은 옷장에 등록하지 않고 종류만. 부츠가 아닌 막힌 신발에만.
 const lowShoe = (i) => !!i && shoeKind(i) === "closed" && !/부츠|boot|워커/i.test([i.subtype, i.subtype_en, i.name, i.name_en].filter(Boolean).join(" "));
+// 펌프스·힐(구두) — 치마·원피스에 보이는 양말을 신지 않는 신발. 스니커즈·로퍼·부츠·메리제인은 아님.
+const heelShoe = (i) => { if (!lowShoe(i)) return false; const s = [i.subtype, i.subtype_en, i.name, i.name_en].filter(Boolean).join(" ");
+  return !/스니커|sneaker|운동화|로퍼|loafer|메리\s?제인|mary\s?jane|플랫|flat|옥스퍼드|oxford|더비|derby/i.test(s) && (/펌프스|pump|힐|heel|구두|stiletto/i.test(s) || (i.heel_cm ?? 0) >= 4); };
 const ankleCut = (b) => !!b && !isSkirt(b) && (b.length === "crop" || (b.length_cm != null && b.length_cm <= 88));
 // 발목 길이 바지 + 로퍼·스니커즈 + 아침 17° 이상이면 양말 대신 덧신
 const footieAuto = (shoes, bottom) => lowShoe(shoes) && ankleCut(bottom) && !!weather && weather.am >= 17;
@@ -1014,6 +1017,7 @@ function fixAccessories(ids, legs) {
   const shoesIt = core.find((i) => slotOf(i) === "shoes"); const bottomIt = core.find((i) => rl.get(i.id) === "bottom");
   if (shoeKind(shoesIt) !== "closed") drop("acc_socks");   // 샌들·뮬에는 양말 없음
   else if (legs && legs !== "socks") drop("acc_socks");    // 직접 고른 덧신·스타킹·맨살
+  else if (legs !== "socks" && (dress || isSkirt(bottomIt)) && heelShoe(shoesIt)) drop("acc_socks");   // 치마·원피스 + 펌프스·힐 → 양말 대신 기온에 맞는 스타킹(legsOf). 직접 고른 양말은 그대로
   else if (legs !== "socks" && footieAuto(shoesIt, bottomIt)) drop("acc_socks");   // 덧신 신는 날
   else if (shoesIt && bottomIt && !isSkirt(bottomIt) && !get("acc_socks")) {               // 바지 + 막힌 신발이면 양말은 꼭 (바지 색에 가까운 것)
     const sk = pool("acc_socks").sort((a, b) => colorGap(a, bottomIt) - colorGap(b, bottomIt))[0];
@@ -1379,8 +1383,7 @@ function drawRec() {
     <div class="acts"><button class="btn pri big ${wornKey ? "done" : ""}" id="td-wear" aria-pressed="${wornKey}" ${wornRow(main)?.rating ? "disabled" : ""}>${icon("i-check", "i s b")}${wornKey ? t("worn") : t("wear")}</button></div>
     ${reviewLines()}
     ${main.edited && main.tag ? `<div class="meta"><span>${t("edited")} · ${esc(LX(main.tag))}</span></div>` : ""}
-    <div class="why">${esc(LX(main.reason))}</div>
-    ${LX(main.tip) ? `<div class="why tipline">${esc(LX(main.tip))}</div>` : ""}
+    ${whyHtml(main)}
     <button class="btn line jgbtn" id="td-judge">${main.judge?.key === comboKey(main.items) ? `<b>${t("jg").v[main.judge.verdict]}</b> · ` : ""}${t("jg").btn}${icon("i-chev", "i xs")}</button>
     <div class="alts"><h4>${t("alts")}</h4>${alts.map(([o, i]) => {
       if (!o) return `<div class="alt blank"><div class="th"><span class="ph"></span></div><div class="tx"><b>${K.dare} · ${t("dareEmpty")[0]}</b><span>${t("dareEmpty")[1]}</span></div></div>`;
@@ -1455,7 +1458,7 @@ function swap(s, dir) {
   const at = cur ? order.indexOf(cur.id) : -1;
   swapTo(s, byId(order[(at + (dir > 0 ? 1 : -1) + order.length * 2) % order.length]));
 }
-async function swapTo(s, next) {
+function swapTo(s, next) {
   if (!next) return toast(t("noSwap"));
   const main = rec.outfits[rec.main]; const prev = itemIn(main, s);
   let ids = main.items.filter((id) => id !== prev?.id).concat(next.id);
@@ -1466,17 +1469,19 @@ async function swapTo(s, next) {
   main.items = CORE.includes(s) ? fixAccessories(ids, main.legs) : ids;
   main.edited = true; main.tag = { ko: `${prev ? prev.name : t("none")} → ${next.name}`, en: `${prev ? nameOfEn(prev) : "None"} → ${nameOfEn(next)}` };
   if (!CORE.includes(s)) { persistRec(); return drawRec(); }        // 가방·액세서리는 다시 평가하지 않음
-  main.score = null; main.reason = { ko: t("rescoring"), en: "Re-scoring…" }; main.tip = { ko: "", en: "" };
+  // 직접 바꾼 조합은 다시 묻지 않음(2026-10-11, 사용자 결정): 밀 때마다 칭찬하는 이유가 새로 나와 "이 조합 봐 줘"와 말이 엇갈렸음.
+  // 이유 자리는 비우고, "이 조합 봐 줘"를 누르면 그 판정이 이유 자리에 들어감(whyHtml).
+  main.score = null; main.reason = { ko: "", en: "" }; main.tip = { ko: "", en: "" };
   persistRec(); drawRec();
   if (prev) sb.from("feedback").insert({ owner: me.id, kind: "swap", from_item: prev.id, to_item: next.id, context: { tpo, occ: tpo === "special" ? occ : null, day: targetDay(), slot: s } }).then(() => {});
-  const key = comboKey(main.items);
-  try {
-    const its = main.items.map(byId).filter(Boolean);
-    const r = await askStylist("score", { items: its }, `${PROFILE}\n${STYLE_RULES}\n${OUTFIT_RULES}\nOccasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, daytime high ${weather.hi ?? weather.pm}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}\nLegs: ${legsOf(main) && legsOf(main) !== "socks" ? t("legs")[legsOf(main)][3] : "socks or trousers"}. Score this outfit she put together herself. Items:\n${its.map(candLine).join("\n")}\nReturn JSON {"score":0-100,"top":44-56,"reason_ko":"","reason_en":"","tip_ko":"","tip_en":""}`);
-    if (comboKey(main.items) !== key) return;
-    Object.assign(main, { score: Number(r.score) || null, top: Math.min(60, Math.max(40, Number(r.top) || 50)), reason: { ko: r.reason_ko || "", en: r.reason_en || "" }, tip: { ko: r.tip_ko || "", en: r.tip_en || "" } });
-  } catch (e) { main.reason = { ko: t("rescoreFail"), en: "Couldn't re-score." }; }
-  persistRec(); if (!$("tab-today").hidden) drawRec();
+}
+// 이유 자리: 추천 때 받은 이유·요령, 직접 바꿔 비었으면 지금 조합의 "이 조합 봐 줘" 판정(좋은 점·걸리는 점)
+const judgeOf = (main) => (main.judge?.key === comboKey(main.items) ? main.judge : null);
+const whyOf = (main) => { const j = !LX(main.reason) && judgeOf(main); return j ? [LX(j.good), LX(j.issue)].filter(Boolean).join(" ") : LX(main.reason); };
+function whyHtml(main) {
+  const j = !LX(main.reason) && judgeOf(main); const J = t("jg");
+  if (j) return [[J.good, LX(j.good)], [J.issue, LX(j.issue)]].filter(([, x]) => x).map(([k, x]) => `<div class="why"><b>${k}</b> ${esc(x)}</div>`).join("");
+  return `${LX(main.reason) ? `<div class="why">${esc(LX(main.reason))}</div>` : ""}${LX(main.tip) ? `<div class="why tipline">${esc(LX(main.tip))}</div>` : ""}`;
 }
 // 이 조합 봐 줘 (2026-10-07, 사용자 결정): 오늘 화면의 지금 조합을 솔직하게 판정하고, 가장 걸리는 칸 하나를 옷장 후보로 바꾼 대안을 보여 줌.
 // 결과는 조합(comboKey)마다 main.judge에 캐시 — 옷을 바꾸면 다시 물음.
@@ -1505,9 +1510,10 @@ async function openJudge() {
     const r = await askStylist("verdict", { items: its, alt, sid, slotOf }, `${PROFILE}
 ${OUTFIT_RULES}
 Occasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, daytime high ${weather.hi ?? weather.pm}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}
-Legs: ${legsOf(main) && legsOf(main) !== "socks" ? t("legs")[legsOf(main)][3] : "socks or trousers"}.
+Legs: ${legsLine(main)}.
 She put this outfit together and asks for an HONEST verdict, not encouragement. Judge it as her stylist would: body proportion, color near the face, the occasion and the weather.
 - verdict: "good" = wear it as is; "ok" = wearable, but one thing holds it back; "weak" = one piece clearly works against her body, her face colors, the occasion or the weather.
+- Weather is not a small flaw: if any piece is clearly wrong for today's temperature or rain (for example bare legs under a short skirt on a morning below 15°C, or a thick knit on a hot afternoon), the verdict is "weak", never "ok".
 - good_ko: ONE thing that works, naming the item. issue_ko: the ONE thing that holds it back most, naming the item and the concrete reason. For "good", issue_ko may be a small refinement or "".
 - swap: for "ok" and "weak", pick ONE replacement for the piece named in issue_ko from the alternatives below (same slot; an item marked top|outer may replace the outer). why_ko = what it fixes, in one sentence. For "good", swap may be null. If no alternative fixes it, swap is null.
 - Plain Korean (해요체), one idea per sentence, no jargon (never: 3:7, BEST, 완충, 톤온톤, 실루엣, 세로선). Be direct — "아쉬워요", "~ 때문에 ~해 보여요" are fine — but never harsh about her body.
@@ -1528,6 +1534,12 @@ Return JSON only: {"verdict":"good|ok|weak","good_ko":"","good_en":"","issue_ko"
   } catch (e) { if ($("jg-busy")) $("jg-busy").textContent = e.message || String(e); }
 }
 const nameOfEn = (i) => i.name_en || i.name;
+// 판정에 보내는 다리 상태: 치마에 양말이면 "보이는 양말 + 그 위 맨다리"처럼 실제 모습 그대로
+function legsLine(o) {
+  const k = legsOf(o); const socks = itemIn(o, "acc_socks");
+  if (showsLeg(o)) return k === "socks" ? `visible socks (${socks ? nameOfEn(socks) : "socks"}) with a skirt or dress — the legs above the socks are bare` : t("legs")[k][3];
+  return `trousers${k === "footie" ? ", no-show socks" : socks ? `, socks (${nameOfEn(socks)}) mostly hidden` : ""}`;
+}
 function pickLegs() {
   const main = rec.outfits[rec.main]; const cur = legsOf(main); const L = t("legs");
   const shoes = itemIn(main, "shoes"); const socks = shoeKind(shoes) === "closed" ? pool("acc_socks") : [];
@@ -1653,7 +1665,7 @@ function wearMain() {
   const prev = settings.get().worn; settings.set({ worn: mark }); drawRec();
   const cancel = pendingWear = later(async () => {
     pendingWear = null;
-    const { data: o, error } = await sb.from("outfits").insert({ owner: me.id, tpo: tpo === "special" ? "formal" : tpo, kind: main.kind, items: ids, score: main.score, reason: LX(main.reason), gauge: { top: main.top, occ: tpo === "special" ? occ : null, legs: legsOf(main) }, saved: true }).select().single();
+    const { data: o, error } = await sb.from("outfits").insert({ owner: me.id, tpo: tpo === "special" ? "formal" : tpo, kind: main.kind, items: ids, score: main.score, reason: whyOf(main), gauge: { top: main.top, occ: tpo === "special" ? occ : null, legs: legsOf(main) }, saved: true }).select().single();
     if (error) { settings.set({ worn: prev }); if (!$("tab-today").hidden) drawRec(); return toast(t("saveFail") + error.message); }
     await sb.from("wear_log").insert({ owner: me.id, worn_on: day, outfit_id: o?.id ?? null, items: ids, source: "recommendation" });
     await sb.from("items").update({ last_worn_on: day }).in("id", ids);
@@ -1668,7 +1680,7 @@ function banMain() {
   rec.outfits = rec.outfits.map((o, k) => (o && (k === rec.main || (pk && pairKey(o.items) === pk)) ? null : o));
   rec.main = rec.outfits.findIndex(Boolean); persistRec(); drawRec();
   const cancel = later(async () => {
-    await sb.from("outfits").insert({ owner: me.id, tpo: tpo === "special" ? "formal" : tpo, kind: main.kind, items: ids, score: main.score, reason: LX(main.reason), banned: true });
+    await sb.from("outfits").insert({ owner: me.id, tpo: tpo === "special" ? "formal" : tpo, kind: main.kind, items: ids, score: main.score, reason: whyOf(main), banned: true });
     await sb.from("feedback").insert({ owner: me.id, kind: "ban", context: { items: ids, tpo } });
   });
   toast(t("banToast"), () => { cancel(); rec = JSON.parse(snap); persistRec(); drawRec(); });
@@ -1878,7 +1890,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.11</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.12</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
