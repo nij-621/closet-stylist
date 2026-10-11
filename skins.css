@@ -210,16 +210,17 @@
 /* 오늘: 칸마다 한 줄 — ◀ 사진 이름 ▶ (영화처럼 칸을 따로 넘김) */
 [data-skin="pc"] .stage { margin-top: 0; padding: 8px 6px; box-shadow: inset -1px -1px var(--dk), inset 1px 1px var(--hi), inset -2px -2px var(--sh); }
 [data-skin="pc"] .stack { display: flex; flex-direction: column; gap: 5px; }
-[data-skin="pc"] .cell { display: grid; grid-template-columns: 30px 104px minmax(0, 1fr) 30px; grid-template-rows: 1fr auto auto 1fr; column-gap: 6px; height: 84px; }
-[data-skin="pc"] .cell .slot, [data-skin="pc"] .cell.span .slot.photo, [data-skin="pc"] .cell.span .slot.empty-slot { grid-column: 2; grid-row: 1 / 5; aspect-ratio: auto !important; height: 84px; background: #fff; box-shadow: var(--bv-in); border: 0; }
+[data-skin="pc"] .cell { display: grid; grid-template-columns: 30px 104px minmax(0, 1fr) 30px; grid-template-rows: 1fr auto auto auto 1fr; column-gap: 6px; height: 84px; }
+[data-skin="pc"] .cell .slot, [data-skin="pc"] .cell.span .slot.photo, [data-skin="pc"] .cell.span .slot.empty-slot { grid-column: 2; grid-row: 1 / 6; aspect-ratio: auto !important; height: 84px; background: #fff; box-shadow: var(--bv-in); border: 0; }
 [data-skin="pc"] .cell .slot .track { inset: 3px; }
 [data-skin="pc"] .cell .slot img.raw { object-position: center 45%; }
 [data-skin="pc"] .cell .slot img.cut { padding: 4px; }
 [data-skin="pc"] .cell .k { grid-column: 3; grid-row: 2; margin: 0; font-size: 12px; font-weight: 700; color: var(--ink3); }
 [data-skin="pc"] .cell .k.pin { color: var(--camel); }
 [data-skin="pc"] .cell .nm { grid-column: 3; grid-row: 3; font-size: 13.5px; font-weight: 700; white-space: normal; max-height: 2.6em; overflow: clip; }
-[data-skin="pc"] .cell .arr { display: grid; place-items: center; grid-row: 1 / 5; grid-column: 1; }
+[data-skin="pc"] .cell .arr { display: grid; place-items: center; grid-row: 1 / 6; grid-column: 1; }
 [data-skin="pc"] .cell .arr.nx { grid-column: 4; }
+[data-skin="pc"] .cell .pos { display: block; grid-column: 3; grid-row: 4; font-size: 18px; line-height: 1; color: var(--ink3); margin-top: 2px; }
 [data-skin="pc"] .cell .slot.empty-slot { font-size: 12px; }
 /* 고르는 중 = 레오파드 화면보호기 + 떠다니는 옷걸이 */
 [data-skin="pc"] .stage:has(.stack.ghost.wait) { position: relative; background: var(--hanger) 0 0 / 170px 150px, var(--leo) 0 0 / 120px 120px; animation: hangers 14s linear infinite; }
@@ -335,3 +336,33 @@
 @media (prefers-reduced-motion: reduce) {
   [data-skin] .stage, [data-skin] .stage::after, [data-skin] .stack .slot, [data-skin] #modal .w::before { animation: none !important; }
 }
+
+/* ── 추가 (2026-10-11, v2.14, 사용자 요청) ── */
+/* 노랑 체크: 등록 화면 단계 번호 1·2·3 (사진 → 어디에 입나요 → 지금 상태) */
+[data-skin="plaid"] .add-body { counter-reset: st; }
+[data-skin="plaid"] .add-body .drop { position: relative; margin-top: 12px; }
+[data-skin="plaid"] .add-body .drop::before, [data-skin="plaid"] .add-body > .by-lbl::before { counter-increment: st; content: counter(st); width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--ink); background: var(--y); color: var(--ink); font-family: var(--pop); font-size: 12px; display: inline-grid; place-items: center; flex: none; }
+[data-skin="plaid"] .add-body .drop::before { position: absolute; left: -8px; top: -12px; }
+[data-skin="plaid"] .add-body > .by-lbl { display: flex; align-items: center; gap: 8px; margin-top: 20px; font-size: 14px; font-weight: 700; color: var(--ink); }
+[data-skin="plaid"] .add-body > .by-lbl .faint { font-weight: 500; }
+
+/* 옷장 컴퓨터: 입력 칸 숫자 — VT323은 같은 크기에서 작게 그려져서 키움 */
+[data-skin="pc"] .fr input[type=number] { font-size: 22px; }
+[data-skin="pc"] .by-nums input { font-size: 28px; }
+
+/* 영어일 때만 테마 글꼴을 짧은 글씨(제목·버튼·탭·칸 이름)에 넓힘. 긴 문장(이유·요령·메모)은 그대로 기본 글꼴.
+   한국어일 때는 이 글꼴들에 한글이 없어서 적용하지 않음 (html lang = applyLang) */
+[data-skin="pc"][lang="en"] .btn, [data-skin="pc"][lang="en"] .chip, [data-skin="pc"][lang="en"] .segc button, [data-skin="pc"][lang="en"] .dayseg button,
+[data-skin="pc"][lang="en"] .occ button, [data-skin="pc"][lang="en"] .ad-opts button, [data-skin="pc"][lang="en"] .mini button, [data-skin="pc"][lang="en"] .cb { font-family: var(--n); font-weight: 400; font-size: 20px; letter-spacing: .01em; }
+[data-skin="pc"][lang="en"] .acts .btn.pri.big, [data-skin="pc"][lang="en"] .add-body > .btn.pri.big, [data-skin="pc"][lang="en"] #by-go { font-size: 24px; }
+[data-skin="pc"][lang="en"] .tr .btn.txt { font-size: 18px; }
+[data-skin="pc"][lang="en"] #tabbar button { font-family: var(--n); font-weight: 400; font-size: 18px; }
+[data-skin="pc"][lang="en"] .h1 { font-family: var(--n); font-weight: 400; font-size: 30px; letter-spacing: 0; }
+[data-skin="pc"][lang="en"] .cell .k, [data-skin="pc"][lang="en"] .extras .x .k { font-family: var(--px); font-weight: 400; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
+[data-skin="pc"][lang="en"] .alts h4, [data-skin="pc"][lang="en"] .by-lbl, [data-skin="pc"][lang="en"] .by-h { font-family: var(--px); font-weight: 400; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+[data-skin="plaid"][lang="en"] .h1 { font-family: var(--pop); font-weight: 400; font-size: 24px; letter-spacing: 0; }
+[data-skin="plaid"][lang="en"] .acts .btn.pri.big, [data-skin="plaid"][lang="en"] .add-body > .btn.pri.big, [data-skin="plaid"][lang="en"] #by-go, [data-skin="plaid"][lang="en"] #login-btn,
+[data-skin="plaid"][lang="en"] .btn.jgbtn, [data-skin="plaid"][lang="en"] .btn.colorbtn { font-family: var(--pop); font-weight: 400; font-size: 16px; letter-spacing: .01em; }
+[data-skin="plaid"][lang="en"] .stack .cell .k { font-family: var(--pop); font-weight: 400; font-size: 10.5px; }
+[data-skin="pc"][lang="en"] .extras .x .k { font-size: 9px; letter-spacing: 0; }
+[data-skin="plaid"][lang="en"] #td-body .top::after { left: auto; right: 48px; transform: translateY(-50%) rotate(-3deg); }   /* "Tomorrow"가 길어 가운데에 두면 겹침 */

@@ -47,7 +47,7 @@ const T = {
       pending: (n) => `${n} photos waiting for analysis`, resume: "Resume", sum: (g, l) => `${g} items added${l ? ` · ${l} labels paired` : ""}`, failed: (n) => `${n} photos not analyzed — tap "Resume" above`,
       labelPrev: "Label paired", labelNext: "Paired with the next label", check: "Check", labelAsk: "Does this label belong to this item?", review: "Review one by one", foot: "Material is read from the label; without one it stays \"unknown\"." },
   },
-  buyTitle: { ko: "내게 맞는 한 벌일까", en: "Will this suit me?" },
+  buyTitle: { ko: "내게 맞는 한 벌일까", en: "Will this suit me?" }, buyTitleP: { ko: "살까 말까", en: "Should I?" },
   buy: {
     ko: { photo: ["상품 사진", "여러 장 가능"], page: ["상세 페이지 캡처", "치수표·혼용률을 읽어 칸에 채워요"], count: (n) => `${n}장 선택 · 다시 고르기`, reading: "치수표를 읽는 중…", noChart: "캡처에서 치수표를 찾지 못했어요. 치수를 직접 넣어 주세요.",
       size: "사이즈", measTitle: "치수 · cm", known: "(아는 것만)", autoRead: "치수표에서 읽음 · 고칠 수 있어요",
@@ -211,8 +211,11 @@ function applySkin() {
     m.dataset.base ??= m.content; m.content = SKIN_BAR[skin] || m.dataset.base;
   });
   const ti = document.querySelector('link[rel="apple-touch-icon"]'); if (ti) ti.setAttribute("href", SKIN_ICON[skin]);
+  // 노랑 체크는 구매 화면 제목이 "살까 말까"(시안 B안)
+  const bt = document.querySelector("#tab-judge .h1"); if (bt) { bt.dataset.t = skin === "plaid" ? "buyTitleP" : "buyTitle"; bt.textContent = t(bt.dataset.t); }
 }
-function setSkin(k) { skin = SKINS.includes(k) ? k : "base"; localStorage.setItem("stylist.skin", skin); applySkin(); }
+function setSkin(k) { skin = SKINS.includes(k) ? k : "base"; localStorage.setItem("stylist.skin", skin); applySkin();
+  if (rec && !$("tab-today").hidden) drawRec(); }   // 옷장 컴퓨터의 "3/9"는 그릴 때만 계산
 applySkin();
 
 // ─────────────────────────────────────────── 고정 프로필 (본인 전용)
@@ -1350,7 +1353,7 @@ function slotCell(o, s, span) {
   const pinned = rec.pin === it.id;
   const hue = !pinned && (rec.colors || []).includes(famOf(it)) ? t("fams")[famOf(it)] : "";   // 고른 색이 들어간 칸
   // 배경을 지운 사진은 여백을 두고, 원래 사진은 칸을 꽉 채움
-  return `<div class="cell ${span ? "span" : ""}"><div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div><span class="k ${pinned || hue ? "pin" : ""}">${t("slot")[s]}${pinned ? " · " + t("pinMark") : hue ? " · " + hue : ""}</span><span class="nm">${esc(nameOf(it))}</span><button class="arr" data-step="-1" aria-label="${t("step")[0]}">${icon("i-back", "i s")}</button><button class="arr nx" data-step="1" aria-label="${t("step")[1]}">${icon("i-chev", "i s")}</button></div>`;
+  return `<div class="cell ${span ? "span" : ""}"><div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div><span class="k ${pinned || hue ? "pin" : ""}">${t("slot")[s]}${pinned ? " · " + t("pinMark") : hue ? " · " + hue : ""}</span><span class="nm">${esc(nameOf(it))}</span>${skin === "pc" ? `<span class="pos n">${stepPos(o, s, it)}</span>` : ""}<button class="arr" data-step="-1" aria-label="${t("step")[0]}">${icon("i-back", "i s")}</button><button class="arr nx" data-step="1" aria-label="${t("step")[1]}">${icon("i-chev", "i s")}</button></div>`;
 }
 function cells(o) {
   const dress = itemIn(o, "top")?.category === "dress"; const list = [];
@@ -1452,11 +1455,17 @@ function swipeOrder(main, s, cur) {
   main.swipe = { ...main.swipe, [s]: order };
   return order;
 }
+// 그 칸에서 밀거나 ◀ ▶로 돌아가는 목록: 바꿀 수 있는 옷(지금 조합에 없는 것)만, 어울리는 순
+function stepList(main, s, cur) {
+  const ok = new Set(pool(s, cur?.id).filter((x) => !main.items.includes(x.id)).map((x) => x.id));
+  return { ok, order: swipeOrder(main, s, cur).filter((id) => ok.has(id) || id === cur?.id) };
+}
+// 옷장 컴퓨터 테마의 "3/9" — 그 목록에서 지금 옷의 자리
+const stepPos = (main, s, cur) => { const { order } = stepList(main, s, cur); return order.length > 1 ? `${order.indexOf(cur.id) + 1}/${order.length}` : ""; };
 function swap(s, dir) {
   const main = rec.outfits[rec.main]; const cur = itemIn(main, s);
   if (cur && cur.id === rec.pin) { drawRec(); return toast(t("swapPin")); }
-  const ok = new Set(pool(s, cur?.id).filter((x) => !main.items.includes(x.id)).map((x) => x.id));
-  const order = swipeOrder(main, s, cur).filter((id) => ok.has(id) || id === cur?.id);
+  const { ok, order } = stepList(main, s, cur);
   if (!ok.size) { drawRec(); return toast(t("noSwap")); }
   const at = cur ? order.indexOf(cur.id) : -1;
   swapTo(s, byId(order[(at + (dir > 0 ? 1 : -1) + order.length * 2) % order.length]));
@@ -1893,7 +1902,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.13</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.14</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {

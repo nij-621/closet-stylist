@@ -641,4 +641,4 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 #td-start:disabled { background: var(--well); color: var(--ink2); border: 1px solid var(--line); opacity: 1; }
 .td-hint { margin-top: 8px; text-align: center; font-size: 13px; color: var(--ink3); }
 /* 옷장 컴퓨터 테마의 ◀ ▶ — 다른 테마에선 숨김 */
-.cell .arr { display: none; }
+.cell .arr, .cell .pos { display: none; }
