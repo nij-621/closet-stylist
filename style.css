@@ -426,8 +426,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .sheet-note b { display: block; font-size: 12px; font-weight: 600; color: var(--camel); }
 .sheet-row { margin-top: 8px; gap: 8px; }
 .sheet-row .btn { flex: 1; height: 46px; font-size: 14px; gap: 5px; }
-#st-lang { display: flex; width: 100%; margin-top: 6px; border-radius: var(--r-md); }
-#st-lang button { flex: 1; height: 44px; font-family: inherit; font-size: 14px; font-weight: 500; }
+#st-lang, #st-skin { display: flex; width: 100%; margin-top: 6px; border-radius: var(--r-md); }
+#st-lang button, #st-skin button { flex: 1; height: 44px; font-family: inherit; font-size: 14px; font-weight: 500; }
 
 /* 다리: 스타킹·맨살은 사진 대신 색 동그라미 */
 .ph[class*="lg-"] { border: 1px solid var(--line); }
@@ -640,3 +640,5 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 @media (prefers-reduced-motion: reduce) { .stack.ghost.wait .slot, .stack.ghost.wait .nm { animation: none; } }
 #td-start:disabled { background: var(--well); color: var(--ink2); border: 1px solid var(--line); opacity: 1; }
 .td-hint { margin-top: 8px; text-align: center; font-size: 13px; color: var(--ink3); }
+/* 옷장 컴퓨터 테마의 ◀ ▶ — 다른 테마에선 숨김 */
+.cell .arr { display: none; }

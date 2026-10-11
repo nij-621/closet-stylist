@@ -15,10 +15,11 @@ const MOCK = QS.has("mock") && ["localhost", "127.0.0.1"].includes(location.host
 let lang = QS.get("lang") === "en" ? "en" : QS.get("lang") === "ko" ? "ko" : (localStorage.getItem("stylist.lang") || "ko");
 const T = {
   tab_today: { ko: "오늘", en: "Today" }, tab_closet: { ko: "옷장", en: "Closet" }, tab_add: { ko: "등록", en: "Add" }, tab_buy: { ko: "구매", en: "Buy" },
+  step: { ko: ["이전 옷", "다음 옷"], en: ["Previous", "Next"] },
   // 설정 · Gemini 오류
   set: {
-    ko: { title: "설정", lang: "언어", key: "Gemini API 키", keyNote: "(이 기기에만 저장)", show: "보기", hide: "숨기기", model: "Gemini 모델", reload: "모델 목록 다시 불러오기", modelNote: "키를 넣으면 쓸 수 있는 모델이 목록으로 나와요.", needKeyFirst: "키를 먼저 넣어 주세요.", loading: "모델 목록을 불러오는 중…", loaded: (n) => `쓸 수 있는 모델 ${n}개예요. Flash는 빠르고 저렴하고, Pro는 느리지만 더 꼼꼼해요.`, gone: (m) => `${m}은(는) 이제 쓸 수 없어요.`, place: "날씨 위치 이름", lat: "위도", lon: "경도", geo: "현재 위치로", geoFail: "위치를 가져오지 못했어요", save: "저장", exp: "내 기록 내려받기", logout: "로그아웃" },
-    en: { title: "Settings", lang: "Language", key: "Gemini API key", keyNote: "(stored on this device only)", show: "Show", hide: "Hide", model: "Gemini model", reload: "Reload model list", modelNote: "Enter your key to see the models you can use.", needKeyFirst: "Enter the key first.", loading: "Loading models…", loaded: (n) => `${n} models available. Flash is fast and cheap; Pro is slower but more careful.`, gone: (m) => `${m} is no longer available.`, place: "Weather location", lat: "Latitude", lon: "Longitude", geo: "Use current location", geoFail: "Couldn't get your location", save: "Save", exp: "Download my records", logout: "Log out" },
+    ko: { title: "설정", lang: "언어", skin: "테마", skins: { base: "기본", plaid: "노랑 체크", pc: "옷장 컴퓨터" }, key: "Gemini API 키", keyNote: "(이 기기에만 저장)", show: "보기", hide: "숨기기", model: "Gemini 모델", reload: "모델 목록 다시 불러오기", modelNote: "키를 넣으면 쓸 수 있는 모델이 목록으로 나와요.", needKeyFirst: "키를 먼저 넣어 주세요.", loading: "모델 목록을 불러오는 중…", loaded: (n) => `쓸 수 있는 모델 ${n}개예요. Flash는 빠르고 저렴하고, Pro는 느리지만 더 꼼꼼해요.`, gone: (m) => `${m}은(는) 이제 쓸 수 없어요.`, place: "날씨 위치 이름", lat: "위도", lon: "경도", geo: "현재 위치로", geoFail: "위치를 가져오지 못했어요", save: "저장", exp: "내 기록 내려받기", logout: "로그아웃" },
+    en: { title: "Settings", lang: "Language", skin: "Theme", skins: { base: "Classic", plaid: "Yellow plaid", pc: "Closet computer" }, key: "Gemini API key", keyNote: "(stored on this device only)", show: "Show", hide: "Hide", model: "Gemini model", reload: "Reload model list", modelNote: "Enter your key to see the models you can use.", needKeyFirst: "Enter the key first.", loading: "Loading models…", loaded: (n) => `${n} models available. Flash is fast and cheap; Pro is slower but more careful.`, gone: (m) => `${m} is no longer available.`, place: "Weather location", lat: "Latitude", lon: "Longitude", geo: "Use current location", geoFail: "Couldn't get your location", save: "Save", exp: "Download my records", logout: "Log out" },
   },
   aiErr: {
     ko: { key: "Gemini 키가 맞지 않아요. 설정에서 키를 확인해 주세요.", model: "고른 Gemini 모델을 쓸 수 없어요. 설정에서 다른 모델을 골라 주세요.", busy: "요청이 많아 잠시 막혔어요. 1분 뒤에 다시 시도해 주세요.", down: "Gemini 쪽에 문제가 있어요. 잠시 뒤 다시 시도해 주세요." },
@@ -190,6 +191,26 @@ function setLang(l) {
   if (!$("tab-judge").hidden) renderBuy();
   if (!$("tab-add").hidden) renderAdd();
 }
+
+// ─────────────────────────────────────────── 테마 (2026-10-11, 사용자 결정 — 시안 private/clueless.html)
+// 기본(v5) · 노랑 체크 · 옷장 컴퓨터. 화면 구조는 같고 skins.css가 덮어씀. 이 기기에만 저장. 다크 모드는 기본만.
+// index.html 머리의 짧은 스크립트가 data-skin을 먼저 붙여 깜빡임을 막고, 여기서는 글꼴·상단 바 색을 맞춤.
+const SKINS = ["base", "plaid", "pc"];
+const SKIN_FONTS = { plaid: "family=Rammetto+One&family=Nanum+Pen+Script", pc: "family=VT323&family=Silkscreen" };
+const SKIN_BAR = { plaid: "#fffbf0", pc: "#8ea6d4" };
+let skin = SKINS.includes(localStorage.getItem("stylist.skin")) ? localStorage.getItem("stylist.skin") : "base";
+function applySkin() {
+  document.documentElement.dataset.skin = skin;
+  if (SKIN_FONTS[skin] && !document.getElementById(`font-${skin}`)) {
+    const l = document.createElement("link"); l.id = `font-${skin}`; l.rel = "stylesheet";
+    l.href = `https://fonts.googleapis.com/css2?${SKIN_FONTS[skin]}&display=swap`; document.head.appendChild(l);
+  }
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    m.dataset.base ??= m.content; m.content = SKIN_BAR[skin] || m.dataset.base;
+  });
+}
+function setSkin(k) { skin = SKINS.includes(k) ? k : "base"; localStorage.setItem("stylist.skin", skin); applySkin(); }
+applySkin();
 
 // ─────────────────────────────────────────── 고정 프로필 (본인 전용)
 // 체형·컬러·핏 기준은 코드에 두지 않는다(공개 저장소). 로그인 후 DB의 profile 표에서 읽는다 — migrations/003_profile.sql
@@ -1322,7 +1343,7 @@ function slotCell(o, s, span) {
   const pinned = rec.pin === it.id;
   const hue = !pinned && (rec.colors || []).includes(famOf(it)) ? t("fams")[famOf(it)] : "";   // 고른 색이 들어간 칸
   // 배경을 지운 사진은 여백을 두고, 원래 사진은 칸을 꽉 채움
-  return `<div class="cell ${span ? "span" : ""}"><div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div><span class="k ${pinned || hue ? "pin" : ""}">${t("slot")[s]}${pinned ? " · " + t("pinMark") : hue ? " · " + hue : ""}</span><span class="nm">${esc(nameOf(it))}</span></div>`;
+  return `<div class="cell ${span ? "span" : ""}"><div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div><span class="k ${pinned || hue ? "pin" : ""}">${t("slot")[s]}${pinned ? " · " + t("pinMark") : hue ? " · " + hue : ""}</span><span class="nm">${esc(nameOf(it))}</span><button class="arr" data-step="-1" aria-label="${t("step")[0]}">${icon("i-back", "i s")}</button><button class="arr nx" data-step="1" aria-label="${t("step")[1]}">${icon("i-chev", "i s")}</button></div>`;
 }
 function cells(o) {
   const dress = itemIn(o, "top")?.category === "dress"; const list = [];
@@ -1373,6 +1394,7 @@ function drawRec() {
   bindHead();
   body.querySelectorAll("[data-alt]").forEach((b) => (b.onclick = () => { rec.main = Number(b.dataset.alt); persistRec(); drawRec(); window.scrollTo(0, 0); }));
   body.querySelectorAll(".slot.photo[data-slot]").forEach(bindGesture);
+  body.querySelectorAll("[data-step]").forEach((b) => (b.onclick = () => swap(b.closest(".cell").querySelector(".slot").dataset.slot, Number(b.dataset.step))));   // 옷장 컴퓨터 테마의 ◀ ▶ (다른 테마에선 숨김)
   body.querySelectorAll(".slot.photo[data-slot]").forEach((el) => (el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openItemSheet(el.dataset.slot, byId(el.dataset.id)); } }));
   body.querySelectorAll("[data-legs]").forEach((b) => (b.onclick = () => pickLegs()));
   body.querySelectorAll("[data-add]").forEach((b) => (b.onclick = () => swapTo(b.dataset.add, pool(b.dataset.add)[0])));
@@ -1849,13 +1871,14 @@ function openSettings() {
       <span class="field-row"><select id="st-model"><option value="${esc(settings.model)}">${esc(settings.model)}</option></select><button type="button" class="btn line mini-btn" id="st-models" aria-label="${S.reload}"><svg class="i s"><use href="#i-refresh"/></svg></button></span></label>
     <p class="muted small" id="st-model-msg">${S.modelNote}</p>
     <div class="field">${S.lang}<div class="lang" id="st-lang">${["ko", "en"].map((l) => `<button type="button" data-l="${l}" class="${lang === l ? "on" : ""}">${l === "ko" ? "한국어" : "English"}</button>`).join("")}</div></div>
+    <div class="field">${S.skin}<div class="lang" id="st-skin">${SKINS.map((k) => `<button type="button" data-k="${k}" class="${skin === k ? "on" : ""}">${S.skins[k]}</button>`).join("")}</div></div>
     <label class="field">${S.place}<input type="text" id="st-name" value="${esc(h.name)}"></label>
     <div class="modal-row"><label class="field" style="flex:1;margin:0">${S.lat}<input type="text" id="st-lat" inputmode="decimal" value="${h.lat}"></label><label class="field" style="flex:1;margin:0">${S.lon}<input type="text" id="st-lon" inputmode="decimal" value="${h.lon}"></label></div>
     <button class="btn ghost" id="st-geo">${S.geo}</button>
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.10</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.11</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
@@ -1872,6 +1895,7 @@ function openSettings() {
     $("st-models").disabled = false;
   };
   $("st-lang").querySelectorAll("[data-l]").forEach((b) => (b.onclick = () => { if (b.dataset.l === lang) return; closeModal(); setLang(b.dataset.l); openSettings(); }));
+  $("st-skin").querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => { setSkin(b.dataset.k); $("st-skin").querySelectorAll("[data-k]").forEach((x) => x.classList.toggle("on", x === b)); }));
   $("st-models").onclick = loadModels;
   $("st-key").addEventListener("change", loadModels);
   $("st-show").onclick = () => { const k = $("st-key"); const on = k.type === "password"; k.type = on ? "text" : "password"; $("st-show").textContent = on ? S.hide : S.show; };
