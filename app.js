@@ -211,6 +211,7 @@ function applySkin() {
     m.dataset.base ??= m.content; m.content = SKIN_BAR[skin] || m.dataset.base;
   });
   const ti = document.querySelector('link[rel="apple-touch-icon"]'); if (ti) ti.setAttribute("href", SKIN_ICON[skin]);
+  const mf = document.querySelector('link[rel="manifest"]'); if (mf) mf.setAttribute("href", skin === "base" ? "manifest.webmanifest" : `manifest-${skin}.webmanifest`);
   // 노랑 체크는 구매 화면 제목이 "살까 말까"(시안 B안)
   const bt = document.querySelector("#tab-judge .h1"); if (bt) { bt.dataset.t = skin === "plaid" ? "buyTitleP" : "buyTitle"; bt.textContent = t(bt.dataset.t); }
 }
@@ -1902,7 +1903,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.14</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.15</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {

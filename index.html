@@ -15,7 +15,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="skins.css">
-<script>try { var k = localStorage.getItem("stylist.skin"); if (k === "plaid" || k === "pc") document.documentElement.dataset.skin = k; } catch (e) {}</script>
+<script>
+// 테마: 그리기 전에 붙여 깜빡임을 막고, 아이폰 "홈 화면에 추가"가 읽는 아이콘·매니페스트도 테마 것으로 바꿈.
+// 사파리와 홈 화면 앱은 저장 공간이 따로라서 ?skin=pc|plaid|base 로 테마를 넘김 — 사파리에선 항상 따르고,
+// 홈 화면 앱(매니페스트 start_url)에선 아직 고른 테마가 없을 때만(첫 실행) 따름.
+try {
+  var q = new URLSearchParams(location.search).get("skin"), k = localStorage.getItem("stylist.skin");
+  var app = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  if (/^(base|plaid|pc)$/.test(q || "") && (!app || !k)) { k = q; localStorage.setItem("stylist.skin", k); }
+  if (k === "plaid" || k === "pc") {
+    document.documentElement.dataset.skin = k;
+    document.querySelector('link[rel="apple-touch-icon"]').setAttribute("href", "icon-180-" + k + ".png?v=1");
+    document.querySelector('link[rel="manifest"]').setAttribute("href", "manifest-" + k + ".webmanifest");
+  }
+} catch (e) {}
+</script>
 </head>
 <body>
 

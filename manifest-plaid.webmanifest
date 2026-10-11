@@ -1,0 +1,12 @@
+{
+  "name": "Stylist",
+  "short_name": "Stylist",
+  "description": "내 옷장으로 오늘 뭐 입지",
+  "start_url": "./?skin=plaid",
+  "display": "standalone",
+  "background_color": "#fbfaf7",
+  "theme_color": "#fbfaf7",
+  "icons": [
+    { "src": "icon-180-plaid.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
