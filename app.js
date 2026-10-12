@@ -941,6 +941,8 @@ const tooWarmTop = (i) => !!i && hotDay() && i.warmth != null && i.warmth > HOT_
 const COOL_AM = 15;
 const tooThinLower = (i) => !!i && !!weather && weather.am < COOL_AM && ["bottom", "dress", "shoes"].includes(i.category)
   && (i.warmth === 1 || (i.season?.length === 1 && i.season[0] === "summer"));
+// 출근 시간 12° 미만이면 치마·원피스에 양말 대신 스타킹 — 짧은 양말 위 맨다리는 춥고 덜 단정 (2026-10-12, 사용자 결정)
+const HOSE_AM = 12;
 // 날짜: 오늘 또는 내일(밤에 내일 옷을 미리 준비). 저녁 8시가 지나면 내일부터 보여 줌.
 let dayOff = new Date().getHours() >= 20 ? 1 : 0;
 const targetDate = () => { const d = new Date(); d.setDate(d.getDate() + dayOff); return d; };
@@ -1025,6 +1027,7 @@ function fixAccessories(ids, legs) {
   if (shoeKind(shoesIt) !== "closed") drop("acc_socks");   // 샌들·뮬에는 양말 없음
   else if (legs && legs !== "socks") drop("acc_socks");    // 직접 고른 덧신·스타킹·맨살
   else if (legs !== "socks" && (dress || isSkirt(bottomIt)) && heelShoe(shoesIt)) drop("acc_socks");   // 치마·원피스 + 펌프스·힐 → 양말 대신 기온에 맞는 스타킹(legsOf). 직접 고른 양말은 그대로
+  else if (legs !== "socks" && (dress || isSkirt(bottomIt)) && !!weather && weather.am < HOSE_AM) drop("acc_socks");   // 쌀쌀한 아침 치마·원피스 → 로퍼·스니커즈여도 스타킹(legsOf). 직접 고른 양말은 그대로
   else if (legs !== "socks" && footieAuto(shoesIt, bottomIt)) drop("acc_socks");   // 덧신 신는 날
   else if (shoesIt && bottomIt && !isSkirt(bottomIt) && !get("acc_socks")) {               // 바지 + 막힌 신발이면 양말은 꼭 (바지 색에 가까운 것)
     const sk = pool("acc_socks").sort((a, b) => colorGap(a, bottomIt) - colorGap(b, bottomIt))[0];
@@ -1165,7 +1168,7 @@ Occasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${wx}
 Each outfit = one top, one bottom, one shoes${needOuter() ? ", one outer (morning is under 17°C)" : ", outer only if useful"}. A dress (slot "top", category dress) replaces top+bottom: then include NO bottom.
 Items marked top|outer (cardigans) can be worn EITHER as the top OR thrown on over another top as the outer. When one is the outer, list it together with a separate top and do NOT add another outer. ${isCold() ? "It is cold, so a top|outer item may also go under a coat." : "NEVER combine a top|outer item with a blazer, jacket or coat today — such outfits are discarded."} Items in slot outer are never the only top.
 Optional: one bag, and accessories — at most one per group: acc_earring, acc_neck (necklace or scarf), acc_wrist (bracelet or ring), acc_socks${isCold() ? ", acc_gloves" : ""}. One eye-catching piece per outfit; match metal colors.
-Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes${weather && weather.am >= 17 ? " — except ankle-length trousers with loafers or sneakers, where she wears no-show socks: leave socks out" : ""}. With a skirt or dress, include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out — the app adds stockings, no-show socks or bare legs by temperature. Never socks with sandals or mules.
+Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes${weather && weather.am >= 17 ? " — except ankle-length trousers with loafers or sneakers, where she wears no-show socks: leave socks out" : ""}. With a skirt or dress, ${weather && weather.am < HOSE_AM ? "NEVER include acc_socks this morning (too cold for bare legs above socks — she wears tights; do not mention socks in why or tip)" : "include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out"} — the app adds stockings, no-show socks or bare legs by temperature. Never socks with sandals or mules.
 ${hotDay() ? `Warm afternoon (high ${weather.hi ?? weather.pm}°C): the top stays on all day, so it must be light (두께 ${HOT_TOP_MAX} or less) — knits and other thick tops are discarded. ${needOuter() ? "The outer covers the cool morning and comes off later: choose one that is easy to take off and carry." : ""}` : ""}
 ${weather && weather.rain >= 40 ? "Rain is likely: avoid suede, light canvas and sandals; prefer items marked 비OK; avoid floor-length hems." : ""}
 ${pin ? `MUST include item ${sid(pin)} (${pin.name}) in every outfit.` : ""}
@@ -1903,7 +1906,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.17</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.18</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
