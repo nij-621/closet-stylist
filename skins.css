@@ -162,6 +162,8 @@
   --hanger: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='150'%3E%3Cg fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M40 40v-3c2-.6 3.2-2 3.2-3.8a3.2 3.2 0 0 0-6.4 0' transform='rotate(-10 40 40)'/%3E%3Cpath d='M40 40 22 52h36Z' transform='rotate(-10 40 40)'/%3E%3Cpath d='M120 105v-3c2-.6 3.2-2 3.2-3.8a3.2 3.2 0 0 0-6.4 0' transform='rotate(12 120 105)'/%3E%3Cpath d='M120 105 102 117h36Z' transform='rotate(12 120 105)'/%3E%3C/g%3E%3C/svg%3E");
 }
 [data-skin="pc"] body { background: radial-gradient(rgba(255,255,255,.14) 1px, transparent 1.2px) 0 0 / 4px 4px, var(--desk); }
+/* 창(.tab) 아래 여백이 스크롤 높이에 들어가게 — body 높이가 100%로 묶여 있으면 사파리가 넘친 창의 아래 margin을 버려 맨 아래 버튼이 탭바 뒤에 숨음 */
+[data-skin="pc"] body { height: auto; min-height: 100%; display: flow-root; }
 [data-skin="pc"] *, [data-skin="pc"] *::before, [data-skin="pc"] *::after { border-radius: 0 !important; }
 
 /* 탭 하나 = 창 하나 (제목 줄은 장식이라 영어) */
