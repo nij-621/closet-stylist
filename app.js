@@ -1521,7 +1521,7 @@ async function openJudge() {
     $("jg-keep").onclick = closeModal;
     const go = $("jg-go"); if (go) go.onclick = () => { closeModal(); swapTo(j.swap.slot, nx); };
   };
-  if (main.judge?.key === key) return show(main.judge);
+  if (main.judge?.key === key && main.judge.v === 2) return show(main.judge);   // v2: 추천 요령을 전제로 판정 (그 전 캐시는 다시 물음)
   openModal(`<p class="sheet-k">${J.title}</p><p class="by-note" id="jg-busy">${J.busy}</p>`, "sheet");
   try {
     if (!MOCK && !PROFILE) { await loadProfile(); if (!PROFILE) throw new Error(t("noProfile")); }
@@ -1532,6 +1532,7 @@ async function openJudge() {
 ${OUTFIT_RULES}
 Occasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, daytime high ${weather.hi ?? weather.pm}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}
 Legs: ${legsLine(main)}.
+${main.tip?.en || main.tip?.ko ? `How she will wear it (the tip given with this outfit): "${main.tip.en || main.tip.ko}". Judge the outfit worn this way; what this tip already fixes (for example a long outer worn open so the waistline shows) is not the issue.` : ""}
 She put this outfit together and asks for an HONEST verdict, not encouragement. Judge it as her stylist would: body proportion, color near the face, the occasion and the weather.
 - verdict: "good" = wear it as is; "ok" = wearable, but one thing holds it back; "weak" = one piece clearly works against her body, her face colors, the occasion or the weather.
 - Weather is not a small flaw: if any piece is clearly wrong for today's temperature or rain (for example bare legs under a short skirt on a morning below 15°C, or a thick knit on a hot afternoon), the verdict is "weak", never "ok".
@@ -1547,7 +1548,7 @@ Return JSON only: {"verdict":"good|ok|weak","good_ko":"","good_en":"","issue_ko"
     const s = r.swap && alt.find((i) => sid(i) === String(r.swap.id).trim());
     const slot = r.swap && String(r.swap.slot);
     const okSwap = s && CORE.includes(slot) && (slotOf(s) === slot || (slot === "outer" && isFlex(s))) && (slot === "outer" || !!itemIn(main, slot));
-    main.judge = { key, verdict: ["good", "ok", "weak"].includes(r.verdict) ? r.verdict : "ok",
+    main.judge = { key, v: 2, verdict: ["good", "ok", "weak"].includes(r.verdict) ? r.verdict : "ok",
       good: { ko: r.good_ko || "", en: r.good_en || "" }, issue: { ko: r.issue_ko || "", en: r.issue_en || "" },
       swap: okSwap ? { slot, id: s.id, why: { ko: r.swap.why_ko || "", en: r.swap.why_en || "" } } : null };
     persistRec(); drawRec();
@@ -1911,7 +1912,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.19</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.20</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
