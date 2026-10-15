@@ -1211,6 +1211,11 @@ ${cand.map(candLine).join("\n")}`);
   const vary = list.find((o) => o && o !== safe && coreDiff(o, safe).length === 1) || null;
   const dare = list.find((o) => o && o !== safe && o !== vary && coreDiff(o, safe).length >= 2 && !known.has(comboKey(o.items))) || null;
   if (vary) vary.kind = "vary"; if (dare) dare.kind = "dare";
+  // 추천 기록 (2026-10-15): 입은 기록과 별개로, 추천이 쏠리는지 보려고 받을 때마다 남김. 표가 없으면 조용히 실패.
+  sb.from("rec_log").insert({ owner: me.id, day: targetDay(), tpo, occ: tpo === "special" ? occ : null,
+    trigger: avoid.length ? "redo" : pin ? "pin" : colors.length ? "color" : "start", pin: pin?.id || null, colors: colors.length ? colors : null,
+    weather: weather ? { am: weather.am, pm: weather.pm, lo: weather.lo, hi: weather.hi, rain: weather.rain } : null,
+    outfits: [safe, vary, dare].map((o) => o && { kind: o.kind, items: o.items, score: o.score }) }).then(() => {});
   return { outfits: [safe, vary, dare], main: 0, pin: pin?.id || null, avoid, colors, made: Date.now() };
 }
 
@@ -1906,7 +1911,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.18</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.19</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
