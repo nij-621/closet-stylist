@@ -642,3 +642,47 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .td-hint { margin-top: 8px; text-align: center; font-size: 13px; color: var(--ink3); }
 /* 옷장 컴퓨터 테마의 ◀ ▶ — 다른 테마에선 숨김 */
 .cell .arr, .cell .pos { display: none; }
+
+/* 남은 시간 (2026-10-25, v3.0 — 목업 .grill/stylist-splash-progress-mockup.html). 버튼 자리가 그대로 바가 되고 글자는 두 겹(바 밖·안).
+   --p는 app.js waitPaint가 0.25초마다 바꾸고 전환이 사이를 메움. 판정 시트는 얇은 바 */
+@property --p { syntax: "<percentage>"; inherits: true; initial-value: 0%; }
+[data-wait] { --p: 0%; transition: --p .25s linear; }
+.wbtn { position: relative; height: 52px; border-radius: 12px; background: var(--well); overflow: hidden; font-size: 16px; font-weight: 600; }
+.wbtn .lab { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ink2); white-space: nowrap; }
+.wbtn .fill { position: absolute; inset: 0; background: var(--espresso); clip-path: inset(0 calc(100% - var(--p)) 0 0); }
+.wbtn .fill .lab { color: var(--on); }
+.whint { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 8px; font-size: 13px; }
+.whint .wrem, .wthin .wrem { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.whint .wusual { color: var(--ink3); }
+.judge-body > .wait { margin-top: 10px; }
+.wthin .tb { height: 3px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 18px; }
+.wthin .tb i { display: block; height: 100%; width: var(--p); background: var(--camel); }
+.wthin .tbrow { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; font-size: 13px; color: var(--ink2); }
+
+/* 시작 화면 (2026-10-25, v3.0 — 같은 목업). 마크업은 index.html(테마마다 한 벌, 지금 테마 것만 보임), 닫기는 app.js splashEnd.
+   워드마크는 글꼴을 기다리지 않게 SVG 경로. 기본 = 옷 라벨이 줄에 매달려 내려와 흔들리다 멈춤 */
+#splash { position: fixed; inset: 0; z-index: 1000; cursor: pointer; }
+#splash .sp { display: none; position: absolute; inset: 0; place-items: center; overflow: hidden; }
+:root:not([data-skin="plaid"]):not([data-skin="pc"]) #splash .sp-base { display: grid; }
+#splash.out { animation: sp-out 220ms var(--ease-out) forwards; pointer-events: none; }
+@keyframes sp-out { to { opacity: 0; } }
+#splash .en { display: none; }
+:root[lang="en"] #splash .en { display: inline; } :root[lang="en"] #splash .ko { display: none; }
+.sp-base { background: var(--paper); color: var(--ink); }
+.sp-tag { position: relative; width: 170px; padding: 32px 14px 22px; border: 1px solid var(--ink); border-radius: 4px; background: var(--paper); text-align: center; transform-origin: 50% -150px; animation: sp-swing 1050ms both; }
+.sp-tag::before { content: ""; position: absolute; top: 10px; left: 50%; width: 9px; height: 9px; margin-left: -5px; border: 1px solid var(--ink); border-radius: 50%; background: var(--paper); z-index: 1; }
+.sp-tag::after { content: ""; position: absolute; bottom: calc(100% - 15px); left: 50%; width: 1px; height: 100vh; background: var(--ink3); }
+.sp-tag .dash { position: absolute; left: 10px; right: 10px; bottom: 8px; border-bottom: 1px dashed var(--ink3); }
+.sp-tag .wm { display: block; width: 124px; height: auto; margin: 0 auto; fill: currentColor; animation: sp-wm 520ms 380ms var(--ease-out) both; }
+.sp-tag .sub { display: block; font-family: var(--n); font-size: 11px; letter-spacing: .18em; color: var(--ink2); margin-top: 8px; padding-bottom: 8px; animation: sp-fade 300ms 700ms ease-out both; }
+.sp-tag .sub b { color: var(--camel); font-weight: 600; }
+@keyframes sp-swing {
+  0%   { transform: translateY(-110vh) rotate(-8deg); animation-timing-function: cubic-bezier(.23, 1, .32, 1); }
+  40%  { transform: translateY(0) rotate(6deg); animation-timing-function: ease-in-out; }
+  60%  { transform: translateY(0) rotate(-3.5deg); animation-timing-function: ease-in-out; }
+  78%  { transform: translateY(0) rotate(1.5deg); animation-timing-function: ease-in-out; }
+  100% { transform: translateY(0) rotate(0); }
+}
+@keyframes sp-wm { from { opacity: 0; transform: scaleX(1.25); } }
+@keyframes sp-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #splash { display: none; } }

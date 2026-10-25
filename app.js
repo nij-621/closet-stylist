@@ -100,6 +100,17 @@ const T = {
   },
   start: { ko: ["코디 시작", "1~2분쯤 걸려요"], en: ["Start styling", "Takes a minute or two"] },
   making: { ko: ["코디를 고르는 중", "다른 탭을 봐도 괜찮아요"], en: ["Picking your outfit", "Feel free to look at other tabs"] },
+  // 남은 시간 (v3.0) — 테마마다 말투가 다름. dur = 5초 단위로 올린 시간
+  wait: {
+    ko: { dur: (s) => { const r = Math.max(5, Math.ceil(s / 5) * 5); return r >= 60 ? `${Math.floor(r / 60)}분${r % 60 ? ` ${r % 60}초` : ""}` : `${r}초`; }, usual: (d) => `보통 ${d}`,
+      base: { left: (d) => `약 ${d} 남음`, soon: "곧 끝나요", over: "평소보다 오래 걸려요", done: "다 됐어요" },
+      plaid: { left: (d) => `약 ${d} 남았어요`, soon: "거의 다 됐어요!", over: "조금만 더…", done: "짠!" },
+      pc: { left: (d) => `남은 시간: 약 ${d}`, soon: "남은 시간: 곧", over: "남은 시간: 계산 중...", done: "남은 시간: 0초" } },
+    en: { dur: (s) => { const r = Math.max(5, Math.ceil(s / 5) * 5); return r >= 60 ? `${Math.floor(r / 60)}m${r % 60 ? ` ${r % 60}s` : ""}` : `${r}s`; }, usual: (d) => `Usually ${d}`,
+      base: { left: (d) => `About ${d} left`, soon: "Almost done", over: "Taking longer than usual", done: "Done" },
+      plaid: { left: (d) => `About ${d} to go`, soon: "Almost there!", over: "Just a sec…", done: "Ta-da!" },
+      pc: { left: (d) => `Time remaining: about ${d}`, soon: "Time remaining: soon", over: "Time remaining: calculating...", done: "Time remaining: 0 sec" } },
+  },
   cant: { ko: "아직 추천할 수 없어요", en: "Can't suggest yet" }, retry: { ko: "다시 시도", en: "Try again" }, allGone: { ko: "오늘 추천을 모두 뺐어요", en: "All picks dismissed" },
   lack: { ko: (s) => `${s}이(가) 부족해요. 옷장에서 '입는 곳' 표시를 확인해 주세요.`, en: (s) => `Missing: ${s}. Check where each item is worn.` },
   noProfile: { ko: "내 체형 기준을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.", en: "Couldn't load your fit profile. Try again shortly." },
@@ -283,11 +294,68 @@ function openModal(html, cls = "") {
 function closeModal() { $("modal-wrap").hidden = true; $("modal").innerHTML = ""; }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// ─────────────────────────────────────────── 남은 시간 (2026-10-25, v3.0, 사용자 결정 — 목업 .grill/stylist-splash-progress-mockup.html)
+// Gemini는 답이 올 때까지 신호가 없어 실제 진행률은 모른다 → 이 기기에서 걸린 시간(종류·모델별 최근 5번 평균)으로 추정.
+// 예상 시간까지 바는 92%, 넘으면 98%까지 천천히, 답이 오면 끝까지 채우고(0.3초) 결과로. 예상을 넘기면 숫자 대신 "평소보다 오래".
+// 화면에는 data-wait="종류" 요소만 두고 0.25초마다 한 곳에서 갱신(CSS 전환이 사이를 메움) — 다시 그려도, 다른 탭에 갔다 와도 시작 시각 기준으로 이어짐.
+const WAIT_DEF = { rec: 75, verdict: 20, buy: 25 };   // 기록이 없을 때(초)
+const waits = {};                                     // 종류 → { k, t0, est, key, done }
+const durKey = (k) => `stylist.dur.${k}.${MOCK ? "mock" : settings.model}`;
+function waitEst(k) {
+  try { const a = JSON.parse(localStorage.getItem(durKey(k))) || []; if (a.length) return a.reduce((s, x) => s + x, 0) / a.length; } catch {}
+  return WAIT_DEF[k];
+}
+function waitStart(k, key = "") { const w = waits[k] = { k, t0: Date.now(), est: waitEst(k), key }; waitTick(); return w; }
+// 성공이면 걸린 시간을 기록하고 바를 끝까지 채운 뒤 돌아옴. 실패면 기록 없이 바로.
+async function waitEnd(w, ok) {
+  if (waits[w.k] !== w) return;
+  if (ok) {
+    try { const a = (JSON.parse(localStorage.getItem(durKey(w.k))) || []).concat(Math.round((Date.now() - w.t0) / 1000)).slice(-5); localStorage.setItem(durKey(w.k), JSON.stringify(a)); } catch {}
+    w.done = true; waitPaint(w); await new Promise((r) => setTimeout(r, 320));
+  }
+  if (waits[w.k] === w) delete waits[w.k];
+}
+function waitP(w) {
+  if (w.done) return 1;
+  const e = (Date.now() - w.t0) / 1000;
+  return e < w.est ? 0.92 * e / w.est : 0.92 + 0.06 * (1 - Math.exp(-(e - w.est) / (0.5 * w.est)));
+}
+function waitText(w) {
+  const S = t("wait")[skin] || t("wait").base;
+  if (w.done) return S.done;
+  const r = w.est - (Date.now() - w.t0) / 1000;
+  return r <= 0 ? S.over : r < Math.min(8, w.est * 0.2) ? S.soon : S.left(t("wait").dur(r));   // "곧"은 마지막 8초, 짧은 일은 마지막 20%
+}
+let waitTimer = 0;
+function waitTick() { clearTimeout(waitTimer); Object.values(waits).forEach(waitPaint); if (Object.keys(waits).length) waitTimer = setTimeout(waitTick, 250); }
+function waitPaint(w) {
+  const p = waitP(w), tx = waitText(w);
+  document.querySelectorAll(`[data-wait="${w.k}"]`).forEach((el) => {
+    el.style.setProperty("--p", (p * 100).toFixed(1) + "%");
+    el.querySelectorAll(".wblocks").forEach((b) => {   // 옷장 컴퓨터: 블록 단위로 끊어서
+      const cs = getComputedStyle(b.parentElement), W = b.parentElement.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), s = Number(b.dataset.step) || 12;
+      b.style.width = Math.floor((p * W + 2) / s) * s + "px";
+    });
+    const r = el.querySelector(".wrem"); if (r && r.textContent !== tx) r.textContent = tx;
+    const bar = el.querySelector("[role=progressbar]"); if (bar) bar.setAttribute("aria-valuenow", Math.round(p * 100));
+  });
+}
+// 기다리는 자리. 기본·체크 = 버튼이 바가 됨 + 남은 시간 줄 / 옷장 컴퓨터 = 윈도우식 대기 창(waitDlg) / 시트 = 얇은 바(waitThin)
+const pbAttr = (label) => `role="progressbar" aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="100"`;
+function waitHtml(k, label) {
+  return `<div class="wait" data-wait="${k}"><div class="wbtn" ${pbAttr(label)}><span class="lab">${esc(label)}</span><span class="fill" aria-hidden="true"><span class="lab">${esc(label)}</span></span></div>
+    <p class="whint"><span class="wrem"></span><span class="wusual">${t("wait").usual(t("wait").dur(waits[k]?.est ?? waitEst(k)))}</span></p></div>`;
+}
+const waitDlg = (k, label, cls = "") => `<div class="wdlg ${cls}" data-wait="${k}"><div class="tt">PLEASE WAIT...<span class="x">x</span></div><div class="bd"><p class="lb">${esc(label)}</p><div class="pbx" ${pbAttr(label)}><i class="wblocks"></i></div><p class="wrem"></p></div></div>`;
+const waitThin = (k, label) => skin === "pc"
+  ? `<div class="term" data-wait="${k}"><p>&gt; ${esc(label)}_</p><div class="gbx" ${pbAttr(label)}><i class="wblocks" data-step="10"></i></div><p class="wrem"></p></div>`
+  : `<div class="wthin" data-wait="${k}"><div class="tb" ${pbAttr(label)}><i></i></div><p class="tbrow"><span>${esc(label)}</span><span class="wrem"></span></p></div>`;
+
 function showTab(name) {
   document.querySelectorAll(".tab").forEach((t) => (t.hidden = t.id !== `tab-${name}`));
   document.querySelectorAll("#tabbar button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
   window.scrollTo(0, 0);
-  if (name === "today") renderToday();
+  if (name === "today") return renderToday();
   if (name === "closet") renderCloset();
   if (name === "judge") renderBuy();
   if (name === "add") renderAdd();
@@ -303,14 +371,21 @@ $("login-form").onsubmit = async (e) => {
   if (error) { $("login-err").textContent = "로그인 실패: " + error.message; $("login-err").hidden = false; return; }
   boot();
 };
+// 시작 화면(index.html): 첫 화면을 그리면 닫되, 워드마크가 읽힐 때까지(페이지를 연 지 SPLASH_MIN)는 둠.
+// 오늘 화면은 날씨를 기다리므로 최대 2.5초까지만 기다림. 누르면 바로 닫히는 건 index.html
+const SPLASH_MIN = 900;
 async function boot() {
+  try { await bootApp(); } finally { if (window.__splashEnd) setTimeout(window.__splashEnd, Math.max(0, SPLASH_MIN - performance.now())); }
+}
+const firstPaint = (p) => Promise.race([p, new Promise((r) => setTimeout(r, 2500))]);
+async function bootApp() {
   applyLang();
   if (MOCK) {
     const mock = await import("./mock.js");
     sb = mock.sb; me = { email: "mock@localhost", id: "mock" };
     $("screen-auth").hidden = true; $("app").hidden = false;
     await loadItems();
-    return showTab(QS.get("tab") || "closet");
+    return firstPaint(showTab(QS.get("tab") || "closet"));
   }
   const { data: { session } } = await sb.auth.getSession();
   if (!session) { $("screen-auth").hidden = false; $("app").hidden = true; return; }
@@ -320,7 +395,7 @@ async function boot() {
   $("screen-auth").hidden = true; $("app").hidden = false;
   await Promise.all([loadItems(), loadProfile()]);
   // Gemini 키가 없으면 추천을 만들 수 없으니 옷장부터 보여 줌
-  showTab(settings.key ? "today" : "closet");
+  await firstPaint(showTab(settings.key ? "today" : "closet"));
 }
 sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") location.reload(); });
 
@@ -1224,6 +1299,8 @@ async function renderToday({ go = false } = {}) {
   if (!weather || weather.day !== targetDay()) await loadWeather();
   await loadWears();
   if (!items.length) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("emptyCloset")[0]}</b>${t("emptyCloset")[1]}</div>`; return bindHead(); }
+  // 다른 탭에 갔다 왔는데 아직 고르는 중 → 기다리는 화면(끝나면 그쪽이 그림). recommend()가 그동안 rec를 빈 틀로 두므로 rec를 보기 전에 확인
+  if (waits.rec && waits.rec.key === recKey() && !rec?.outfits?.length) { body.innerHTML = headHtml() + ghostHtml(t("making")[0]); return bindHead(); }
   if (!rec) {
     try { rec = JSON.parse(localStorage.getItem(recKey())); } catch {}
     if (rec && !(rec.outfits || []).some((o) => o && o.items.every(byId))) rec = null;
@@ -1240,14 +1317,10 @@ async function renderToday({ go = false } = {}) {
   if (!rec) {
     if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
     // 추천은 1~2분 걸려서 저절로 만들지 않고 "코디 시작"을 눌러야 시작 (저장해 둔 추천은 바로 보임)
-    // 결과와 같은 자리·같은 모양(2×2 + 입기 버튼 자리)으로 미리 보여 주고, 기다리는 동안 같은 칸이 깜빡임
-    const ghost = (wait) => { const [btn, hint] = t(wait ? "making" : "start");
-      return headHtml() + `<div class="stage"><div class="stack ghost ${wait ? "wait" : ""}">${["outer", "top", "bottom", "shoes"].map((s) => `<div class="cell"><div class="slot empty-slot"></div><span class="k">${t("slot")[s]}</span><span class="nm"></span></div>`).join("")}</div></div>
-        <div class="acts"><button class="btn pri big" id="td-start" ${wait ? "disabled" : ""}>${btn}</button><p class="td-hint">${hint}</p></div>`; };
-    if (!go) { body.innerHTML = ghost(false); bindHead(); $("td-start").onclick = () => renderToday({ go: true }); return; }
-    body.innerHTML = ghost(true); bindHead();
+    if (!go) { body.innerHTML = headHtml() + ghostHtml(); bindHead(); $("td-start").onclick = () => renderToday({ go: true }); return; }
+    body.innerHTML = headHtml() + ghostHtml(t("making")[0]); bindHead();
     const want = recKey();
-    let r; try { r = await recommend(); } catch (e) { r = { error: e.message }; }
+    const r = await recommendWait();
     if (want !== recKey()) return;                                   // 기다리는 사이 다른 탭으로 바꿈
     if (r.error) { rec = null; body.innerHTML = headHtml() + `<div class="empty"><b>${t("cant")}</b>${esc(r.error)}<button class="btn line" id="td-retry" style="margin-top:12px">${t("retry")}</button><button class="btn line" data-settings style="margin-top:8px">${t("needKey")[2]}</button></div>`; bindHead(); $("td-retry").onclick = () => renderToday({ go: true }); return; }
     rec = r; persistRec();
@@ -1255,6 +1328,21 @@ async function renderToday({ go = false } = {}) {
   drawRec();
 }
 function persistRec() { localStorage.setItem(recKey(), JSON.stringify(rec)); }
+// 결과와 같은 자리·같은 모양(2×2 + 입기 버튼 자리). label이 있으면 고르는 중 — 칸이 깜빡이고 버튼 자리가 남은 시간 바(옷장 컴퓨터는 화면보호기 위 대기 창)
+function ghostHtml(label) {
+  const cells = ["outer", "top", "bottom", "shoes"].map((s) => `<div class="cell"><div class="slot empty-slot"></div><span class="k">${t("slot")[s]}</span><span class="nm"></span></div>`).join("");
+  if (!label) return `<div class="stage"><div class="stack ghost">${cells}</div></div>
+    <div class="acts"><button class="btn pri big" id="td-start">${t("start")[0]}</button><p class="td-hint">${t("start")[1]}</p></div>`;
+  return `<div class="stage"><div class="stack ghost wait">${cells}</div>${skin === "pc" ? waitDlg("rec", label) : ""}</div>
+    <div class="acts">${skin === "pc" ? `<button class="btn pri big" id="td-start" disabled>${esc(label)}</button><p class="td-hint">${t("making")[1]}</p>` : waitHtml("rec", label)}</div>`;
+}
+// 추천 한 번 + 남은 시간. 성공한 것만 걸린 시간으로 기록
+async function recommendWait(opts) {
+  const w = waitStart("rec", recKey());
+  let r; try { r = await recommend(opts); } catch (e) { r = { error: e.message }; }
+  await waitEnd(w, !r.error);
+  return r;
+}
 
 // 착용 후기: 입은 날부터 쓸 수 있고, 오늘 화면의 입기 버튼 아래와 "입은 기록"에서 보고 고친다.
 let wears = [], wearsLoaded = false;
@@ -1522,7 +1610,8 @@ async function openJudge() {
     const go = $("jg-go"); if (go) go.onclick = () => { closeModal(); swapTo(j.swap.slot, nx); };
   };
   if (main.judge?.key === key && main.judge.v === 2) return show(main.judge);   // v2: 추천 요령을 전제로 판정 (그 전 캐시는 다시 물음)
-  openModal(`<p class="sheet-k">${J.title}</p><p class="by-note" id="jg-busy">${J.busy}</p>`, "sheet");
+  const w = waitStart("verdict");
+  openModal(`<p class="sheet-k">${J.title}</p><div id="jg-busy">${waitThin("verdict", J.busy)}</div>`, "sheet");
   try {
     if (!MOCK && !PROFILE) { await loadProfile(); if (!PROFILE) throw new Error(t("noProfile")); }
     const its = main.items.map(byId).filter(Boolean);
@@ -1544,6 +1633,7 @@ ${its.map(candLine).join("\n")}
 Alternatives (id | slot | name | ...):
 ${alt.map(candLine).join("\n")}
 Return JSON only: {"verdict":"good|ok|weak","good_ko":"","good_en":"","issue_ko":"","issue_en":"","swap":{"slot":"outer|top|bottom|shoes","id":"","why_ko":"","why_en":""} or null}`);
+    await waitEnd(w, true);
     if (comboKey(main.items) !== key) return;
     const s = r.swap && alt.find((i) => sid(i) === String(r.swap.id).trim());
     const slot = r.swap && String(r.swap.slot);
@@ -1553,7 +1643,7 @@ Return JSON only: {"verdict":"good|ok|weak","good_ko":"","good_en":"","issue_ko"
       swap: okSwap ? { slot, id: s.id, why: { ko: r.swap.why_ko || "", en: r.swap.why_en || "" } } : null };
     persistRec(); drawRec();
     if ($("jg-busy")) show(main.judge);
-  } catch (e) { if ($("jg-busy")) $("jg-busy").textContent = e.message || String(e); }
+  } catch (e) { waitEnd(w, false); if ($("jg-busy")) $("jg-busy").innerHTML = `<p class="by-note">${esc(e.message || String(e))}</p>`; }
 }
 const nameOfEn = (i) => i.name_en || i.name;
 // 판정에 보내는 다리 상태: 치마에 양말이면 "보이는 양말 + 그 위 맨다리"처럼 실제 모습 그대로
@@ -1582,9 +1672,9 @@ function pickExtra(s) {
   }));
 }
 async function regen(opts, waitMsg) {
-  $("td-body").innerHTML = headHtml() + `<div class="empty"><b>${waitMsg}</b></div>`; bindHead();
+  $("td-body").innerHTML = headHtml() + ghostHtml(waitMsg); bindHead();
   const want = recKey(); const old = rec;
-  let r; try { r = await recommend(opts); } catch (e) { r = { error: e.message }; }
+  const r = await recommendWait(opts);
   if (want !== recKey()) return false;
   if (r.error) { rec = old; toast(r.error, 4000); if (rec) { persistRec(); drawRec(); } else renderToday(); return false; }
   rec = r; persistRec(); drawRec(); return true;
@@ -1624,9 +1714,9 @@ async function startColors(keys) {
   setColors(keys);
   let cached = null; try { cached = JSON.parse(localStorage.getItem(recKey())); } catch {}
   if (cached && (cached.outfits || []).some((o) => o && o.items.every(byId))) { rec = cached; drawRec(); return window.scrollTo(0, 0); }
-  $("td-body").innerHTML = headHtml() + `<div class="empty"><b>${esc(t("color").making(withRo(famNames(keys))))}</b></div>`; bindHead(); window.scrollTo(0, 0);
+  $("td-body").innerHTML = headHtml() + ghostHtml(t("color").making(withRo(famNames(keys)))); bindHead(); window.scrollTo(0, 0);
   const want = recKey();
-  let r; try { r = await recommend(); } catch (e) { r = { error: e.message }; }
+  const r = await recommendWait();
   if (want !== recKey()) return;
   if (r.error) { setColors(oldColors); rec = old; toast(r.error, 4000); return rec ? drawRec() : renderToday(); }
   rec = r; persistRec(); drawRec();
@@ -1770,7 +1860,8 @@ function renderBuy() {
     <div class="by-nums">${MEAS[b.cat].map((k) => `<label>${M[k]}<input type="number" inputmode="decimal" step="0.5" data-bm="${k}" class="${b.auto[k] ? "auto" : ""}" value="${esc(b.vals[k] ?? "")}"></label>`).join("")}</div>
     <textarea id="by-desc" rows="2" placeholder="${BT("paste")}">${esc(b.desc)}</textarea>
     <label class="switch"><input type="checkbox" id="by-color" ${b.color ? "checked" : ""}> ${BT("color")}</label>
-    <button class="btn pri big" id="by-go" ${b.judging || b.reading ? "disabled" : ""}>${b.judging ? BT("judging") : BT("judge")}</button>
+    ${!b.judging ? `<button class="btn pri big" id="by-go" ${b.reading ? "disabled" : ""}>${BT("judge")}</button>`
+      : skin === "pc" ? `<button class="btn pri big" id="by-go" disabled>${BT("judging")}</button>${waitDlg("buy", BT("judging"), "pop")}` : waitHtml("buy", BT("judging"))}
     ${r ? `
       <div class="by-verdict"><span class="w">${gradeOf(r.score)}</span><span class="n">${r.score}</span><span class="c">${BT("conf")[r.confidence] || ""}${r.basis ? " · " + esc(r.basis) : ""}</span></div>
       <div class="by-ev">${r.evidence.map((e) => `<div><span>${BT("src")[e.src] || BT("src").photo}</span><p>${esc(LX(e.text))}</p></div>`).join("")}</div>
@@ -1792,7 +1883,7 @@ function renderBuy() {
   $("by-color").onchange = (e) => { b.color = e.target.checked; };
   $("by-photos").onchange = (e) => { if (!e.target.files.length) return; b.photos = keepFiles(e.target.files, 4); b.result = null; renderBuy(); };
   $("by-shots").onchange = (e) => { if (!e.target.files.length) return; b.shots = keepFiles(e.target.files, 3); b.result = null; readChart(); };
-  $("by-go").onclick = judgeBuy;
+  if ($("by-go")) $("by-go").onclick = judgeBuy;
   const rs = $("by-reset"); if (rs) rs.onclick = () => { Object.assign(buy, { photos: [], shots: [], vals: {}, auto: {}, sizes: [], size: null, desc: "", result: null, error: "" }); renderBuy(); window.scrollTo(0, 0); };
 }
 // 고른 사이즈의 치수를 칸에 채움. 사용자가 직접 넣은 값은 덮어쓰지 않음.
@@ -1826,6 +1917,7 @@ async function judgeBuy() {
   const vals = MEAS[b.cat].filter((k) => Number(b.vals[k]) > 0).map((k) => [k, Number(b.vals[k]), b.auto[k] ? "chart" : "user"]);
   if (!vals.length && !b.photos.length && !b.desc.trim()) return toast(BT("need"));
   if (!MOCK && !PROFILE) { await loadProfile(); if (!PROFILE) return toast(t("noProfile")); }
+  const w = waitStart("buy");
   b.judging = true; b.error = ""; b.result = null; renderBuy();
   try {
     const parts = [{ text: `${PROFILE}
@@ -1864,6 +1956,7 @@ In evidence sentences you MAY state measurements, but keep the wording plain.` }
     const input = [t("cats")[b.cat], vals.map(([k, v]) => `${M[k]} ${v}`).join(", "), b.desc.trim()].filter(Boolean).join(" · ");
     sb.from("judgements").insert({ owner: me.id, input, score, confidence: b.result.confidence, analysis: b.result.evidence.map((e) => e.text.ko), color_impact: b.result.color?.ko || null, color_mode: b.color, similar_count: similar.length, combo_count: savedFit }).then(() => {});
   } catch (e) { b.error = e.message; }
+  await waitEnd(w, !!b.result);
   b.judging = false; renderBuy();
   if (b.result) $("by-go").scrollIntoView({ block: "start", behavior: "smooth" });
 }
@@ -1912,7 +2005,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v2.22</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.0</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {

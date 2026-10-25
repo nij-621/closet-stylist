@@ -227,9 +227,7 @@
 /* 고르는 중 = 레오파드 화면보호기 + 떠다니는 옷걸이 */
 [data-skin="pc"] .stage:has(.stack.ghost.wait) { position: relative; background: var(--hanger) 0 0 / 170px 150px, var(--leo) 0 0 / 120px 120px; animation: hangers 14s linear infinite; }
 [data-skin="pc"] .stack.ghost.wait { visibility: hidden; }
-[data-skin="pc"] .stage:has(.stack.ghost.wait)::after { content: "PLEASE WAIT..."; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 16px; background: var(--face); box-shadow: var(--bv-out), 3px 3px 0 rgba(0,0,0,.3); font-family: var(--n); font-size: 26px; color: #111; white-space: nowrap; animation: blink 1.2s steps(1) infinite; }
 @keyframes hangers { to { background-position: 170px -150px, 0 0; } }
-@keyframes blink { 50% { color: var(--t1); } }
 [data-skin="pc"] .stack.ghost:not(.wait) .slot.empty-slot { background: #fff; }
 
 [data-skin="pc"] .extras { border-top: 0; margin-top: 10px; padding-top: 0; }
@@ -369,3 +367,57 @@
 [data-skin="plaid"][lang="en"] .stack .cell .k { font-family: var(--pop); font-weight: 400; font-size: 10.5px; }
 [data-skin="pc"][lang="en"] .extras .x .k { font-size: 9px; letter-spacing: 0; }
 [data-skin="plaid"][lang="en"] #td-body .top::after { left: auto; right: 48px; transform: translateY(-50%) rotate(-3deg); }   /* "Tomorrow"가 길어 가운데에 두면 겹침 */
+
+/* ── 남은 시간 · 시작 화면 (2026-10-25, v3.0 — 목업 .grill/stylist-splash-progress-mockup.html) ── */
+/* 노랑 체크: 흰 알약 버튼이 노랑으로 차고, 남은 시간은 손글씨 */
+[data-skin="plaid"] .wbtn { height: 54px; border-radius: 999px; background: #fff; border: 2px solid var(--ink); }
+[data-skin="plaid"] .wbtn .fill { background: var(--y); }
+[data-skin="plaid"] .wbtn .lab, [data-skin="plaid"] .wbtn .fill .lab { color: var(--ink); }
+[data-skin="plaid"][lang="en"] .wbtn { font-family: var(--pop); font-weight: 400; font-size: 16px; }
+[data-skin="plaid"] .whint .wrem, [data-skin="plaid"] .wthin .wrem { font-family: var(--hand); font-size: 22px; font-weight: 400; line-height: 1; }
+[data-skin="plaid"] .wthin .tb { height: 11px; border: 2px solid var(--ink); background: #fff; }
+[data-skin="plaid"] .wthin .tb i { background: var(--plaid), var(--y); }
+/* 옷장 컴퓨터: 화면보호기 위(오늘)·화면 가운데(구매)의 대기 창, 판정 시트는 초록 화면. 블록 너비는 app.js가 칸 단위로 맞춤 */
+[data-skin="pc"] .wdlg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(240px, 86%); background: var(--face); box-shadow: var(--bv-out), 3px 3px 0 rgba(0,0,0,.3); padding: 3px 3px 10px; z-index: 2; }
+[data-skin="pc"] .wdlg.pop { position: fixed; top: 45%; z-index: 30; }
+[data-skin="pc"] .wdlg .tt, [data-skin="pc"] .sp-pc .tt { height: 20px; display: flex; align-items: center; justify-content: space-between; padding: 0 3px 0 6px; background: var(--title); color: #fff; font-family: var(--px); font-size: 10px; letter-spacing: .04em; }
+[data-skin="pc"] .wdlg .tt .x, [data-skin="pc"] .sp-pc .tt .x { width: 16px; height: 14px; background: var(--face); box-shadow: var(--bv-out); color: #111; display: grid; place-items: center; font-size: 8px; }
+[data-skin="pc"] .wdlg .bd { padding: 9px 8px 0; }
+[data-skin="pc"] .wdlg .lb { font-size: 13px; font-weight: 700; color: #111; }
+[data-skin="pc"] .wdlg .pbx, [data-skin="pc"] .sp-pc .pbx { height: 20px; padding: 3px; background: #fff; box-shadow: var(--bv-in); margin-top: 8px; }
+[data-skin="pc"] .wdlg .pbx i, [data-skin="pc"] .sp-pc .pbx i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--t1) 0 10px, transparent 10px 12px); }
+[data-skin="pc"] .wdlg .wrem { font-family: var(--n); font-size: 19px; margin-top: 5px; line-height: 1; color: #111; }
+[data-skin="pc"] .term { margin-top: 8px; padding: 10px 10px 12px; background: #08140c; box-shadow: var(--bv-in); color: #3be26b; font-family: var(--n); font-size: 19px; line-height: 1.2; }
+[data-skin="pc"] .term .gbx { height: 16px; padding: 2px; background: #000; margin: 10px 0 8px; box-shadow: inset 0 0 0 1px #1f4d2c; }
+[data-skin="pc"] .term .gbx i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(90deg, #3be26b 0 8px, transparent 8px 10px); }
+
+/* 시작 화면 — 노랑 체크: 체크 천이 펼쳐지고 → 타원 워드마크가 도장처럼 → 분홍 펜 밑줄 → "오늘 뭐 입지" */
+[data-skin="plaid"] #splash .sp-plaid { display: grid; background: var(--paper); }
+.sp-plaid .pl { position: absolute; inset: 0; background: var(--plaid), var(--y); animation: sp-wipe 520ms var(--ease-out) both; }
+@keyframes sp-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.sp-plaid .sp-c { position: relative; display: flex; flex-direction: column; align-items: center; }
+.sp-plaid .oval { width: 214px; padding: 20px 0 22px; border: 2.5px solid var(--ink); border-radius: 50%; background: #fff; box-shadow: 5px 5px 0 var(--ink); animation: sp-stamp 460ms 360ms cubic-bezier(.34, 1.56, .64, 1) both; }
+.sp-plaid .oval .wm { display: block; width: 148px; height: auto; margin: 0 auto; fill: var(--ink); }
+@keyframes sp-stamp { from { opacity: 0; transform: scale(.35) rotate(-16deg); } to { opacity: 1; transform: scale(1) rotate(-3deg); } }
+.sp-plaid .scrib { width: 190px; height: 26px; margin-top: 4px; overflow: visible; }
+.sp-plaid .scrib path { fill: none; stroke: var(--pink); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 260; stroke-dashoffset: 260; animation: sp-draw 380ms 760ms var(--ease-out) forwards; }
+@keyframes sp-draw { to { stroke-dashoffset: 0; } }
+.sp-plaid .ptag { margin-top: 6px; padding: 3px 14px; background: #fff; border: 2px solid var(--ink); border-radius: 999px; font-size: 15px; font-weight: 700; color: var(--ink); animation: sp-pop 280ms 950ms cubic-bezier(.34, 1.56, .64, 1) both; }
+@keyframes sp-pop { from { opacity: 0; transform: scale(.6); } }
+
+/* 시작 화면 — 옷장 컴퓨터: 창이 열리는 점선 사각형 → STYLIST.EXE 창 → 블록 바. 닫힐 때 바를 끝까지 채우고 한 번에 사라짐 */
+[data-skin="pc"] #splash .sp-pc { display: grid; background: var(--leo) 0 0 / 120px 120px; }
+.sp-pc .zoom { position: absolute; left: 50%; top: 50%; width: 236px; height: 176px; margin: -88px 0 0 -118px; border: 2px dotted #111; animation: sp-zoom 260ms steps(5) both, sp-hide 1ms 260ms both; }
+@keyframes sp-zoom { from { transform: scale(.08); } to { transform: scale(1); } }
+@keyframes sp-hide { to { visibility: hidden; } }
+.sp-pc .win { width: 236px; background: var(--face); box-shadow: var(--bv-out), 4px 4px 0 rgba(0,0,0,.3); padding: 3px 3px 12px; animation: sp-show 1ms 250ms both; }
+@keyframes sp-show { from { visibility: hidden; } to { visibility: visible; } }
+.sp-pc .bd { padding: 16px 12px 0; text-align: center; color: #111; }
+.sp-pc .wm { display: block; width: 182px; height: auto; margin: 0 auto; fill: #111; }
+.sp-pc .sub { display: block; width: 60px; height: auto; margin: 8px auto 0; fill: var(--t1); }
+.sp-pc .pbx { margin-top: 14px; }
+.sp-pc .pbx i { animation: sp-blocks 900ms steps(10) 350ms both; }
+@keyframes sp-blocks { to { width: 100%; } }
+.sp-pc .lb { font-size: 12px; margin-top: 6px; text-align: left; }
+[data-skin="pc"] #splash.out { animation: sp-hide 1ms 140ms forwards; }
+#splash.out .sp-pc .pbx i { animation: none; width: 100%; }
