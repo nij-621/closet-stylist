@@ -89,8 +89,8 @@ const T = {
   redoing: { ko: "다른 조합을 짜는 중", en: "Finding other options" }, redone: { ko: "새 조합이에요", en: "New options" },
   noNew: { ko: "요 며칠 입은 것과 다른 조합을 찾지 못했어요. 잠시 뒤 다시 시도해 주세요.", en: "Couldn't find an outfit different from the last few days. Try again shortly." },
   rv: {
-    ko: { title: "입어 보니 어땠어요?", ask: (d) => `${d} 코디, 어땠어요?`, write: "후기 쓰기", edit: "고치기", good: "좋았어요", ok: "그저 그랬어요", bad: "별로였어요", memo: "한 줄 메모", memoOpt: "안 써도 돼요", memoPh: "예: 오후에 더웠어요. 신발이 불편했어요.", pick: "어땠는지 하나 골라 주세요", save: "후기 저장", saved: "후기를 저장했어요", savedBad: "후기를 저장했어요. 이 조합은 다시 추천하지 않아요", log: "입은 기록", none: "아직 입은 기록이 없어요. '이렇게 입을게요'를 누르면 여기에 쌓여요.", noReview: "후기 없음", loadFail: "입은 기록을 불러오지 못했어요" },
-    en: { title: "How did it go?", ask: (d) => `How was the ${d} outfit?`, write: "Add a note", edit: "Edit", good: "Liked it", ok: "So-so", bad: "Didn't like it", memo: "Short note", memoOpt: "optional", memoPh: "e.g. Too warm in the afternoon. Shoes hurt.", pick: "Pick one first", save: "Save", saved: "Saved", savedBad: "Saved. This outfit won't be suggested again", log: "Worn log", none: "Nothing logged yet. Outfits you choose to wear show up here.", noReview: "No note", loadFail: "Couldn't load the log" },
+    ko: { title: "입어 보니 어땠어요?", ask: (d) => `${d} 코디, 어땠어요?`, write: "후기 쓰기", edit: "고치기", good: "좋았어요", ok: "그저 그랬어요", bad: "별로였어요", memo: "한 줄 메모", memoOpt: "안 써도 돼요", memoPh: "예: 오후에 더웠어요. 신발이 불편했어요.", pick: "어땠는지 하나 골라 주세요", save: "후기 저장", saved: "후기를 저장했어요", savedBad: "후기를 저장했어요. 이 조합은 다시 추천하지 않아요", log: "입은 기록", none: "아직 입은 기록이 없어요. '이렇게 입을게요'를 누르면 여기에 쌓여요.", noReview: "후기 없음", loadFail: "입은 기록을 불러오지 못했어요", del: "안 입었어요 · 기록 지우기", deleted: "기록을 지웠어요" },
+    en: { title: "How did it go?", ask: (d) => `How was the ${d} outfit?`, write: "Add a note", edit: "Edit", good: "Liked it", ok: "So-so", bad: "Didn't like it", memo: "Short note", memoOpt: "optional", memoPh: "e.g. Too warm in the afternoon. Shoes hurt.", pick: "Pick one first", save: "Save", saved: "Saved", savedBad: "Saved. This outfit won't be suggested again", log: "Worn log", none: "Nothing logged yet. Outfits you choose to wear show up here.", noReview: "No note", loadFail: "Couldn't load the log", del: "Didn't wear it · remove", deleted: "Removed" },
   },
   wearToast: { ko: "입기로 기록했어요", en: "Logged as worn" }, unwearToast: { ko: "입기로 한 것을 취소했어요", en: "Unmarked" }, banToast: { ko: "이 상의·하의 짝은 다시 추천하지 않아요", en: "Won't pair this top and bottom again" },
   noMore: { ko: "오늘 본 것과 다른 상의·하의가 더 없어요.", en: "No tops or bottoms left that you haven't seen today." },
@@ -1365,7 +1365,25 @@ function openWearReview(row, after) {
     <div class="rv-th">${coreOf(row.items).map((i) => `<img src="${esc(thumbOf(i))}" alt="${esc(nameOf(i))}">`).join("")}</div>
     <div class="chips" id="rv-rate">${["good", "ok", "bad"].map((k) => `<button type="button" class="chip ${rating === k ? "on" : ""}" data-r="${k}">${RV(k)}</button>`).join("")}</div>
     <label class="field">${RV("memo")} <span class="muted">${RV("memoOpt")}</span><textarea id="rv-note" rows="3" maxlength="300" placeholder="${esc(RV("memoPh"))}">${esc(row.note || "")}</textarea></label>
-    <button class="btn pri big" id="rv-save">${RV("save")}</button>`);
+    <button class="btn pri big" id="rv-save">${RV("save")}</button>
+    ${row.rating ? "" : `<button class="btn line" id="rv-del" style="margin-top:10px">${RV("del")}</button>`}`);
+  const redraw = () => (after ? after() : !$("tab-today").hidden && rec && drawRec());
+  // 후기 없는 기록만 지울 수 있다(후기 = 실제로 입었다는 뜻). 지운 기록은 취소 표시만 하고 실행 취소로 되살린다.
+  if ($("rv-del")) $("rv-del").onclick = async () => {
+    $("rv-del").disabled = true;
+    const error = await cancelWear(row);
+    if (error) { $("rv-del").disabled = false; return toast(t("saveFail") + error.message, 4000); }
+    closeModal(); await loadWears(); redraw();
+    toast(RV("deleted"), async () => {
+      await sb.from("wear_log").update({ source: row.source }).eq("id", row.id);
+      if (row.outfit_id) await sb.from("outfits").update({ saved: true }).eq("id", row.outfit_id);
+      for (const id of row.items || []) {
+        const it = byId(id); if (!it || (it.last_worn_on || "") >= row.worn_on) continue;
+        await sb.from("items").update({ last_worn_on: row.worn_on }).eq("id", id); it.last_worn_on = row.worn_on;
+      }
+      await loadWears(); redraw();
+    });
+  };
   $("rv-rate").querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => { rating = b.dataset.r; $("rv-rate").querySelectorAll("[data-r]").forEach((x) => x.classList.toggle("on", x === b)); }));
   $("rv-save").onclick = async () => {
     if (!rating) return toast(RV("pick"));
@@ -1748,23 +1766,37 @@ const live = (rows) => (rows || []).filter((r) => r.source !== "cancelled");
 const wornRow = (main) => wears.find((r) => r.worn_on === targetDay() && comboKey(r.items || []) === comboKey(main.items));
 const isWorn = (main) => settings.get().worn === targetDay() + "|" + comboKey(main.items) || !!wornRow(main);
 let pendingWear = null;
+// 기록 하나를 취소하고, 그 옷들의 마지막 착용일을 남은 기록으로 되돌린다. 실패하면 오류를 돌려준다.
+async function cancelWear(row) {
+  const { error } = await sb.from("wear_log").update({ source: "cancelled" }).eq("id", row.id);
+  if (error) return error;
+  if (settings.get().worn === row.worn_on + "|" + comboKey(row.items || [])) settings.set({ worn: null });
+  if (row.outfit_id) await sb.from("outfits").update({ saved: false }).eq("id", row.outfit_id);
+  const { data } = await sb.from("wear_log").select("*").order("worn_on", { ascending: false }).limit(200);
+  const rest = live(data).filter((r) => r.id !== row.id);
+  for (const id of row.items || []) {
+    const it = byId(id); if (!it || it.last_worn_on !== row.worn_on) continue;
+    const last = rest.find((r) => (r.items || []).includes(id))?.worn_on || null;
+    await sb.from("items").update({ last_worn_on: last }).eq("id", id); it.last_worn_on = last;
+  }
+}
+// 같은 날·같은 상황(출근/외출/특별한 날)에 전에 입기로 한 코디는 새 코디로 바뀐 것이라 취소한다. 후기를 쓴 기록은 그대로.
+async function replaceSameDay(day, tp, keep) {
+  const { data } = await sb.from("wear_log").select("*").eq("worn_on", day);
+  const old = live(data).filter((r) => r.worn_on === day && r.id !== keep && !r.rating && r.outfit_id);
+  if (!old.length) return;
+  const { data: outs } = await sb.from("outfits").select("id, tpo").in("id", old.map((r) => r.outfit_id));
+  const tpoOf = new Map((outs || []).map((o) => [o.id, o.tpo]));
+  for (const r of old) if (tpoOf.get(r.outfit_id) === tp) await cancelWear(r);
+}
 async function unwearMain() {
   const main = rec.outfits[rec.main]; const row = wornRow(main);
   if (row?.rating) return;                                          // 후기까지 쓴 기록은 실제로 입은 것이라 되돌리지 않는다
   if (pendingWear) { pendingWear(); pendingWear = null; }
   if (settings.get().worn === targetDay() + "|" + comboKey(main.items)) settings.set({ worn: null });
   if (row) {
-    const { error } = await sb.from("wear_log").update({ source: "cancelled" }).eq("id", row.id);
+    const error = await cancelWear(row);
     if (error) return toast(t("saveFail") + error.message, 4000);
-    if (row.outfit_id) await sb.from("outfits").update({ saved: false }).eq("id", row.outfit_id);
-    // 마지막 착용일을 그 전 기록으로 되돌림
-    const { data } = await sb.from("wear_log").select("*").order("worn_on", { ascending: false }).limit(200);
-    const rest = live(data).filter((r) => r.id !== row.id);
-    for (const id of row.items || []) {
-      const it = byId(id); if (!it || it.last_worn_on !== row.worn_on) continue;
-      const last = rest.find((r) => (r.items || []).includes(id))?.worn_on || null;
-      await sb.from("items").update({ last_worn_on: last }).eq("id", id); it.last_worn_on = last;
-    }
     await loadWears();
   }
   if (!$("tab-today").hidden && rec) drawRec();
@@ -1774,14 +1806,16 @@ function wearMain() {
   const main = rec.outfits[rec.main];
   if (isWorn(main)) return unwearMain();
   const day = targetDay(); const ids = [...main.items]; const mark = day + "|" + comboKey(ids);
+  const tp = tpo === "special" ? "formal" : tpo;
   const prev = settings.get().worn; settings.set({ worn: mark }); drawRec();
   const cancel = pendingWear = later(async () => {
     pendingWear = null;
-    const { data: o, error } = await sb.from("outfits").insert({ owner: me.id, tpo: tpo === "special" ? "formal" : tpo, kind: main.kind, items: ids, score: main.score, reason: whyOf(main), gauge: { top: main.top, occ: tpo === "special" ? occ : null, legs: legsOf(main) }, saved: true }).select().single();
+    const { data: o, error } = await sb.from("outfits").insert({ owner: me.id, tpo: tp, kind: main.kind, items: ids, score: main.score, reason: whyOf(main), gauge: { top: main.top, occ: tpo === "special" ? occ : null, legs: legsOf(main) }, saved: true }).select().single();
     if (error) { settings.set({ worn: prev }); if (!$("tab-today").hidden) drawRec(); return toast(t("saveFail") + error.message); }
-    await sb.from("wear_log").insert({ owner: me.id, worn_on: day, outfit_id: o?.id ?? null, items: ids, source: "recommendation" });
+    const { data: w } = await sb.from("wear_log").insert({ owner: me.id, worn_on: day, outfit_id: o?.id ?? null, items: ids, source: "recommendation" }).select().single();
     await sb.from("items").update({ last_worn_on: day }).in("id", ids);
     ids.forEach((id) => { const it = byId(id); if (it) it.last_worn_on = day; });
+    if (w?.id) await replaceSameDay(day, tp, w.id);
     await loadWears(); if (!$("tab-today").hidden && rec) drawRec();   // 후기 줄이 바로 나타나게
   });
   toast(t("wearToast"), () => { cancel(); pendingWear = null; settings.set({ worn: prev }); drawRec(); });
@@ -2005,7 +2039,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.0</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.1</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
