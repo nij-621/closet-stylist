@@ -1012,6 +1012,14 @@ const isCold = () => !!weather && weather.am <= 8;
 const HOT_HI = 22, HOT_TOP_MAX = 2;
 const hotDay = () => !!weather && (weather.hi ?? weather.pm) >= HOT_HI;
 const tooWarmTop = (i) => !!i && hotDay() && i.warmth != null && i.warmth > HOT_TOP_MAX;
+// 겉옷 두께는 낮 최고로: 종일 쌀쌀(15° 미만)하면 계속 입으니 두께 4 이상, 낮에 따뜻해지면(20° 이상) 벗어 들 수 있게 3 이하
+// (2026-10-28, 사용자 결정 — 10°/12° 비 오는 날과 11°/24° 날에 같은 블레이저). 두께 4 이상 겉옷이 하나도 없으면 아래 한도는 안 씀
+const CHILLY_HI = 15, WARM_OUTER_MIN = 4, MILD_HI = 20, LIGHT_OUTER_MAX = 3;
+const dayHi = () => weather ? weather.hi ?? weather.pm : null;
+const chillyDay = () => !!weather && dayHi() < CHILLY_HI;
+const mildDay = () => !!weather && dayHi() >= MILD_HI;
+const warmOuterExists = () => items.some((i) => (i.category === "outer" || isFlex(i)) && i.warmth >= WARM_OUTER_MIN && usable(i));
+const wrongOuter = (i) => !!i && i.warmth != null && ((chillyDay() && i.warmth < WARM_OUTER_MIN && warmOuterExists()) || (mildDay() && i.warmth > LIGHT_OUTER_MAX));
 // 출근 시간 15° 미만이면 한여름용(두께 1 또는 계절 "여름"만) 하의·원피스·신발은 뺀다 (2026-10-07, 사용자 결정 — 12° 아침에 얇은 7부 바지 추천)
 const COOL_AM = 15;
 const tooThinLower = (i) => !!i && !!weather && weather.am < COOL_AM && ["bottom", "dress", "shoes"].includes(i.category)
@@ -1032,12 +1040,17 @@ const famNames = (ks) => ks.map((k) => t("fams")[k]).join(" + ");
 const withRo = (w) => { if (lang === "en") return w; const c = w.charCodeAt(w.length - 1) - 0xac00, j = c >= 0 && c < 11172 ? c % 28 : 0; return w + (j && j !== 8 ? "으로" : "로"); };
 const colorHit = (o, keys) => keys.every((k) => CORE.some((s) => { const i = itemIn(o, s); return i && famOf(i) === k; }));
 
+// 상태·추천 방식·상황(출근/외출)만 본 기본 조건 — 날씨는 candidates()가 따로 봄
+function usable(i) {
+  if (i.status !== "active" || i.recommend === "never" || i.recommend === "on_request") return false;
+  if (i.recommend === "special_only" && tpo !== "special") return false;
+  if (tpo === "work" && !i.formality_work) return false;
+  if (tpo === "out" && !i.formality_out) return false;
+  return true;
+}
 function candidates() {
   return items.filter((i) => {
-    if (i.status !== "active" || i.recommend === "never" || i.recommend === "on_request") return false;
-    if (i.recommend === "special_only" && tpo !== "special") return false;
-    if (tpo === "work" && !i.formality_work) return false;
-    if (tpo === "out" && !i.formality_out) return false;
+    if (!usable(i)) return false;
     const s = slotOf(i);
     if (s === "acc_hair" || s === "acc_etc" || s === "acc_belt" || s === "acc_hat") return false;
     if (s === "acc_gloves" && !isCold()) return false;
@@ -1047,6 +1060,7 @@ function candidates() {
     }
     if (s === "top" && !isFlex(i) && tooWarmTop(i)) return false;   // 가디건(둘 다)은 겉옷으로 남김 — 상의 자리는 validOutfit이 막음
     if (tooThinLower(i)) return false;
+    if (s === "outer" && wrongOuter(i)) return false;   // 가디건(둘 다)은 상의로 남김 — 겉옷 자리는 validOutfit이 막음
     return true;
   });
 }
@@ -1144,6 +1158,7 @@ function validOutfit(o) {
   if (!isCold() && has("outer") && its.some((i) => isFlex(i) && rl.get(i.id) === "top")) return false;
   if (its.some((i) => rl.get(i.id) === "top" && tooWarmTop(i))) return false;   // 더운 낮에 두꺼운 상의
   if (its.some(tooThinLower)) return false;   // 쌀쌀한 아침에 한여름 하의·원피스·신발
+  if (its.some((i) => rl.get(i.id) === "outer" && wrongOuter(i))) return false;   // 낮 기온에 안 맞는 겉옷 두께
   if (rec?.pin && !o.items.includes(rec.pin)) return false;
   return true;
 }
@@ -1245,6 +1260,8 @@ Items marked top|outer (cardigans) can be worn EITHER as the top OR thrown on ov
 Optional: one bag, and accessories — at most one per group: acc_earring, acc_neck (necklace or scarf), acc_wrist (bracelet or ring), acc_socks${isCold() ? ", acc_gloves" : ""}. One eye-catching piece per outfit; match metal colors.
 Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes${weather && weather.am >= 17 ? " — except ankle-length trousers with loafers or sneakers, where she wears no-show socks: leave socks out" : ""}. With a skirt or dress, ${weather && weather.am < HOSE_AM ? "NEVER include acc_socks this morning (too cold for bare legs above socks — she wears tights; do not mention socks in why or tip)" : "include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out"} — the app adds stockings, no-show socks or bare legs by temperature. Never socks with sandals or mules.
 ${hotDay() ? `Warm afternoon (high ${weather.hi ?? weather.pm}°C): the top stays on all day, so it must be light (두께 ${HOT_TOP_MAX} or less) — knits and other thick tops are discarded. ${needOuter() ? "The outer covers the cool morning and comes off later: choose one that is easy to take off and carry." : ""}` : ""}
+${chillyDay() && warmOuterExists() ? `Cold all day (high only ${dayHi()}°C): the outer stays on, so it must be warm (두께 ${WARM_OUTER_MIN} or more: a coat, padded jacket or thick cardigan) — blazers and light jackets as the outer are discarded.` : ""}
+${mildDay() && needOuter() ? `The afternoon warms to ${dayHi()}°C: the outer comes off and is carried, so it must be light (두께 ${LIGHT_OUTER_MAX} or less) — coats and padded jackets are discarded.` : ""}
 ${weather && weather.rain >= 40 ? "Rain is likely: avoid suede, light canvas and sandals; prefer items marked 비OK; avoid floor-length hems." : ""}
 ${pin ? `MUST include item ${sid(pin)} (${pin.name}) in every outfit.` : ""}
 ${colorRule}
@@ -1313,6 +1330,8 @@ async function renderToday({ go = false } = {}) {
     if (rec && main && !main.edited && !isWorn(main) && main.items.some((id) => id !== rec.pin && byId(id) && slotIn(main.items, byId(id)) === "top" && tooWarmTop(byId(id)))) rec = null;
     // 저장해 둔 추천에 쌀쌀한 아침인데 한여름 하의·원피스·신발이 있으면 새로 고른다
     if (rec && main && !main.edited && !isWorn(main) && main.items.some((id) => id !== rec.pin && tooThinLower(byId(id)))) rec = null;
+    // 저장해 둔 추천의 겉옷이 낮 기온에 안 맞는 두께면 새로 고른다
+    if (rec && main && !main.edited && !isWorn(main) && main.items.some((id) => id !== rec.pin && byId(id) && slotIn(main.items, byId(id)) === "outer" && wrongOuter(byId(id)))) rec = null;
   }
   if (!rec) {
     if (!MOCK && !settings.key) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("needKey")[0]}</b>${t("needKey")[1]}<button class="btn line" data-settings style="margin-top:12px">${t("needKey")[2]}</button></div>`; bindHead(); return; }
@@ -2039,7 +2058,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.1</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.2</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
