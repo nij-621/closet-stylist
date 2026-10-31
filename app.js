@@ -438,6 +438,11 @@ async function refreshUrls() {
 }
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && signedAt && Date.now() - signedAt > 5 * 3600e3) refreshUrls();
+  // 멈춰 둔 앱을 다음 날 깨우면 어젯밤의 "내일" 코디가 오늘의 "내일" 탭에 남는다 → 오늘/내일과 추천을 다시 정함
+  if (document.visibilityState === "visible" && dayOffOn !== todayStr()) {
+    dayOff = new Date().getHours() >= 20 ? 1 : 0; dayOffOn = todayStr(); rec = null; weather = null;
+    if (!$("tab-today").hidden) renderToday();
+  }
 });
 // 목록·추천에는 배경을 지운 사진(있으면), 옷 상세에는 원래 사진
 const thumbOf = (it) => urlCache.get(it.cut_path) || urlCache.get(it.thumb_path) || "";
@@ -1045,7 +1050,7 @@ const tooThinLower = (i) => !!i && !!weather && weather.am < COOL_AM && ["bottom
 // 출근 시간 12° 미만이면 치마·원피스에 양말 대신 스타킹 — 짧은 양말 위 맨다리는 춥고 덜 단정 (2026-10-12, 사용자 결정)
 const HOSE_AM = 12;
 // 날짜: 오늘 또는 내일(밤에 내일 옷을 미리 준비). 저녁 8시가 지나면 내일부터 보여 줌.
-let dayOff = new Date().getHours() >= 20 ? 1 : 0;
+let dayOff = new Date().getHours() >= 20 ? 1 : 0, dayOffOn = todayStr();
 const targetDate = () => { const d = new Date(); d.setDate(d.getDate() + dayOff); return d; };
 const targetDay = () => targetDate().toLocaleDateString("sv-SE");
 const recKeyOf = (day) => `stylist.rec.${day}.${tpo}${tpo === "special" ? "." + occ : ""}`;
@@ -1350,6 +1355,7 @@ async function renderToday({ go = false } = {}) {
   if (!items.length) { body.innerHTML = headHtml() + `<div class="empty"><b>${t("emptyCloset")[0]}</b>${t("emptyCloset")[1]}</div>`; return bindHead(); }
   // 다른 탭에 갔다 왔는데 아직 고르는 중 → 기다리는 화면(끝나면 그쪽이 그림). recommend()가 그동안 rec를 빈 틀로 두므로 rec를 보기 전에 확인
   if (waits.rec && waits.rec.key === recKey() && !rec?.outfits?.length) { body.innerHTML = headHtml() + ghostHtml(t("making")[0]); return bindHead(); }
+  if (rec?.day && rec.day !== targetDay()) rec = null;              // 다른 날 코디가 메모리에 남아 있음
   if (!rec) {
     try { rec = JSON.parse(localStorage.getItem(recKey())); } catch {}
     if (rec && !(rec.outfits || []).some((o) => o && o.items.every(byId))) rec = null;
@@ -1378,7 +1384,8 @@ async function renderToday({ go = false } = {}) {
   }
   drawRec();
 }
-function persistRec() { localStorage.setItem(recKey(), JSON.stringify(rec)); }
+// 추천에 날짜를 붙여 둔다 — 다른 날 코디를 이 날 자리에 저장하지 않게
+function persistRec() { if (!rec || (rec.day && rec.day !== targetDay())) return; rec.day = targetDay(); localStorage.setItem(recKey(), JSON.stringify(rec)); }
 // 결과와 같은 자리·같은 모양(2×2 + 입기 버튼 자리). label이 있으면 고르는 중 — 칸이 깜빡이고 버튼 자리가 남은 시간 바(옷장 컴퓨터는 화면보호기 위 대기 창)
 function ghostHtml(label) {
   const cells = ["outer", "top", "bottom", "shoes"].map((s) => `<div class="cell"><div class="slot empty-slot"></div><span class="k">${t("slot")[s]}</span><span class="nm"></span></div>`).join("");
@@ -2133,7 +2140,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.3</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.4</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
