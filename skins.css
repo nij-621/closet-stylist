@@ -61,6 +61,9 @@
 [data-skin="plaid"] .stack.ghost.wait .slot { background: linear-gradient(135deg, #3a3626, #8a8158 60%, #c8bb8a); animation: develop 2.6s ease-in-out infinite alternate; }
 [data-skin="plaid"] .stack.ghost.wait .cell:nth-child(2) .slot { animation-delay: .6s; } [data-skin="plaid"] .stack.ghost.wait .cell:nth-child(3) .slot { animation-delay: 1.2s; } [data-skin="plaid"] .stack.ghost.wait .cell:nth-child(4) .slot { animation-delay: 1.8s; }
 [data-skin="plaid"] .stack.ghost.wait .nm { background: none; animation: none; }
+/* 세 겹 칸: 테이프는 칸에 하나(.k.tape), 반 칸 이름은 그 아래 작게 */
+[data-skin="plaid"] .stack .duo-cap .k { position: static; transform: none; height: auto; padding: 0; background: none; margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--ink3); }
+[data-skin="plaid"] .stack .duo-cap .nm { font-size: 16px; margin-top: 0; white-space: nowrap; }
 [data-skin="plaid"] .stack.ghost.wait .nm::before { content: "developing…"; color: var(--ink3); font-size: 18px; }
 @keyframes develop { 0% { filter: brightness(.3) sepia(.6); } 100% { filter: none; } }
 [data-skin="plaid"] .extras { border-top: 0; margin-top: 16px; padding-top: 0; }
@@ -224,6 +227,14 @@
 [data-skin="pc"] .cell .arr.nx { grid-column: 4; }
 [data-skin="pc"] .cell .pos { display: block; grid-column: 3; grid-row: 4; font-size: 18px; line-height: 1; color: var(--ink3); margin-top: 2px; }
 [data-skin="pc"] .cell .slot.empty-slot { font-size: 12px; }
+/* 세 겹 칸: 사진 자리를 반반, 이름은 두 줄(◀ ▶ 없음 — 누르면 시트에서 바꿈) */
+[data-skin="pc"] .duo-cell .duo { grid-column: 2; grid-row: 1 / 6; aspect-ratio: auto; height: 84px; gap: 3px; margin-top: 0; }
+[data-skin="pc"] .cell .duo .slot { grid-column: auto; grid-row: auto; height: 84px; }
+[data-skin="pc"] .duo-cell .duo-cap { grid-column: 3; grid-row: 2 / 5; grid-template-columns: 1fr; gap: 3px; }
+[data-skin="pc"] .duo-cap .k { font-size: 11px; }
+[data-skin="pc"] .duo-cap .nm { white-space: nowrap; text-overflow: ellipsis; max-height: none; font-size: 12.5px; }
+[data-skin="pc"] #modal.sheet .sheet-pair { margin: 0 -15px; border-radius: 0; }
+[data-skin="pc"] #modal.sheet .sheet-pair .ph { background: #fff; box-shadow: var(--bv-in); }
 /* 고르는 중 = 레오파드 화면보호기 + 떠다니는 옷걸이 */
 [data-skin="pc"] .stage:has(.stack.ghost.wait) { position: relative; background: var(--hanger) 0 0 / 170px 150px, var(--leo) 0 0 / 120px 120px; animation: hangers 14s linear infinite; }
 [data-skin="pc"] .stack.ghost.wait { visibility: hidden; }

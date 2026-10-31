@@ -30,7 +30,13 @@ const T = {
   occ: { ko: { dinner: "근사한 저녁", interview: "면접", concert: "공연", party: "회사 파티" }, en: { dinner: "Nice dinner", interview: "Interview", concert: "Concert", party: "Office party" } },
   am: { ko: "출근 07–09시", en: "Commute 07–09" }, pm: { ko: "퇴근 17–19시", en: "Return 17–19" }, rain: { ko: "비", en: "Rain" }, noWx: { ko: "예보 없음", en: "No forecast" }, morning: { ko: "아침", en: "morning" },
   kind: { ko: { safe: "안전", vary: "변주", dare: "도전", manual: "직접" }, en: { safe: "Safe", vary: "Variation", dare: "New", manual: "Custom" } },
-  slot: { ko: { outer: "아우터", top: "상의", bottom: "하의", shoes: "신발", bag: "가방", acc_earring: "귀걸이", acc_neck: "목걸이·스카프", acc_wrist: "팔찌·반지", acc_socks: "양말", acc_gloves: "장갑" }, en: { outer: "Outer", top: "Top", bottom: "Bottom", shoes: "Shoes", bag: "Bag", acc_earring: "Earrings", acc_neck: "Necklace · scarf", acc_wrist: "Bracelet · ring", acc_socks: "Socks", acc_gloves: "Gloves" } },
+  lay: {
+    ko: { cardigan: "가디건", jacket: "재킷", shirt: "셔츠", inner: "안에", indoor: "실내에서는 이렇게 보여요", under: (m, i) => `${m} 안에 ${i}`,
+      swapMid: (k) => `${k} 바꾸기`, swapIn: "안에 입는 옷 바꾸기", drop: "가운데 겹 빼기 · 두 겹으로", add: "가디건 하나 더 걸치기" },
+    en: { cardigan: "Cardigan", jacket: "Jacket", shirt: "Shirt", inner: "Under", indoor: "How it looks indoors", under: (m, i) => `${i} under ${m}`,
+      swapMid: (k) => `Swap the ${k.toLowerCase()}`, swapIn: "Swap the top underneath", drop: "Remove the middle layer", add: "Add a cardigan on top" },
+  },
+  slot: { ko: { outer: "아우터", mid: "가운데 겹", top: "상의", bottom: "하의", shoes: "신발", bag: "가방", acc_earring: "귀걸이", acc_neck: "목걸이·스카프", acc_wrist: "팔찌·반지", acc_socks: "양말", acc_gloves: "장갑" }, en: { outer: "Outer", mid: "Middle layer", top: "Top", bottom: "Bottom", shoes: "Shoes", bag: "Bag", acc_earring: "Earrings", acc_neck: "Necklace · scarf", acc_wrist: "Bracelet · ring", acc_socks: "Socks", acc_gloves: "Gloves" } },
   noOuter: { ko: "아우터 없음", en: "No outer" }, add: { ko: "추가", en: "Add" }, none: { ko: "없음", en: "None" }, takeOff: { ko: "빼기", en: "Take off" },
   addTitle: { ko: "옷 등록", en: "Add clothes" },
   addT: {
@@ -168,6 +174,7 @@ const T = {
       neckline: { crew: "라운드", v: "브이", collar: "칼라", turtle: "터틀", boat: "보트", square: "스퀘어", none: "해당 없음" },
       acc_type: { earring: "귀걸이", necklace: "목걸이", bracelet: "팔찌", ring: "반지", scarf: "스카프", socks: "양말", hair: "헤어핀", gloves: "장갑", belt: "벨트", hat: "모자" },
       layer_role: { base: "상의로만", mid: "상의로도, 걸쳐서도", outer: "걸쳐서만" },
+      layer_role_outer: { outer: "겉옷으로만", mid: "코트 안에도" },
       metal: { gold: "골드", rose_gold: "로즈골드", silver: "실버" },
       warmth: { 1: "1 · 한여름", 2: "2 · 얇음", 3: "3 · 보통", 4: "4 · 두꺼움", 5: "5 · 한겨울" },
       recommend: { auto: "평소처럼", on_request: "요청할 때만", special_only: "특별한 날만", never: "추천 안 함" },
@@ -182,6 +189,7 @@ const T = {
       neckline: { crew: "Crew", v: "V-neck", collar: "Collar", turtle: "Turtle", boat: "Boat", square: "Square", none: "N/A" },
       acc_type: { earring: "Earrings", necklace: "Necklace", bracelet: "Bracelet", ring: "Ring", scarf: "Scarf", socks: "Socks", hair: "Hair clip", gloves: "Gloves", belt: "Belt", hat: "Hat" },
       layer_role: { base: "As a top only", mid: "Top or layer", outer: "As a layer only" },
+      layer_role_outer: { outer: "Outer only", mid: "Also under a coat" },
       metal: { gold: "Gold", rose_gold: "Rose gold", silver: "Silver" },
       warmth: { 1: "1 · midsummer", 2: "2 · light", 3: "3 · medium", 4: "4 · thick", 5: "5 · midwinter" },
       recommend: { auto: "As usual", on_request: "Only when asked", special_only: "Special days only", never: "Never" },
@@ -863,7 +871,7 @@ function fieldsFor(cat) {
   if (cat === "shoes") return [...base, "heel_cm", "material", "season", "warmth", "rain", "fit_note"];
   const wear = [...base, "pattern", "length", "length_cm"];
   if (cat !== "bottom") wear.push("sleeve", "neckline");
-  if (cat === "top") wear.splice(2, 0, "layer_role");
+  if (cat === "top" || cat === "outer") wear.splice(2, 0, "layer_role");   // 겉옷: 겉옷으로만 · 코트 안에도(가운데 겹)
   return [...wear, "silhouette", "material", "season", "warmth", "rain", "size_label", "fit_note", "condition_note"];
 }
 async function openReview(it, queue = null) {
@@ -876,6 +884,7 @@ async function openReview(it, queue = null) {
     if (k === "season") return `<div class="fr"><div class="l">${dot("season")}${F.season}</div><div class="cbs">${SEASONS.map((s) => `<button type="button" class="cb ${draft.season.includes(s) ? "on" : ""}" data-season="${s}">${O.season[s]}</button>`).join("")}</div></div>`;
     if (k === "rain") return `<div class="fr"><div class="l">${dot("rain", "default")}${F.rain}</div><div class="cbs"><button type="button" class="cb ${draft.rain ? "on" : ""}" data-cb="rain">${F.rainOn}</button></div></div>`;
     if (k === "length_cm" || k === "heel_cm") return `<div class="fr"><div class="l">${dot(k)}${F[k]}</div><div class="v"><input type="number" inputmode="decimal" step="0.5" min="0" max="200" data-k="${k}" value="${draft[k] ?? ""}" placeholder="—"><span class="unit">cm${src[k] === "user" ? "" : " · " + t("estimate")}</span></div></div>`;
+    if (k === "layer_role" && draft.category === "outer") return `<div class="fr"><div class="l">${dot(k)}${F[k]}</div><div class="v"><select data-k="${k}">${["outer", "mid"].map((o) => `<option value="${o}" ${(draft[k] === "mid" ? "mid" : "outer") === o ? "selected" : ""}>${esc(O.layer_role_outer[o])}</option>`).join("")}</select></div></div>`;
     if (OPT[k]) return `<div class="fr"><div class="l">${dot(k)}${F[k]}</div><div class="v"><select data-k="${k}">${OPT[k].map((o) => `<option value="${o}" ${String(draft[k] ?? "") === o ? "selected" : ""}>${esc(optLabel(k, o))}</option>`).join("")}</select></div></div>`;
     const sw = k === "color_name" && draft.color_hex ? `<span class="sw" style="background:${esc(draft.color_hex)}"></span>` : "";
     const val = k === "material" ? (draft.material || "") : (pick(draft, k) || "");
@@ -992,15 +1001,24 @@ const ACC_GROUP = { earring: "earring", necklace: "neck", scarf: "neck", bracele
 // 입는 방식(layer_role): base = 상의로만 · outer = 걸쳐서만(가디건이어도 겉옷 자리) · mid = 둘 다(그날 조합에 따라 자리가 정해짐)
 const isFlex = (i) => i.category === "top" && i.layer_role === "mid";
 const slotOf = (i) => i.category === "dress" ? "top" : i.category === "acc" ? "acc_" + (ACC_GROUP[i.acc_type] || "etc") : (i.category === "top" && i.layer_role === "outer") ? "outer" : i.category;
-// 한 조합 안에서 각 옷의 자리. 상의가 둘이고 겉옷이 없으면 "둘 다" 옷이 겉옷 자리로 간다.
+// 가운데 겹(2026-10-31, 사용자 결정 — 세 겹 코디, `.grill/stylist-three-layer.md`): 안 상의 + 가운데 겹 + 겉옷.
+// 가운데 겹이 될 수 있는 옷 = 가디건·셔츠(상의 중 "상의로도, 걸쳐서도"·"걸쳐서만") + 겉옷 중 입는 방식 "코트 안에도"(블레이저·트위드 재킷)
+const canMid = (i) => !!i && ((i.category === "top" && (i.layer_role === "mid" || i.layer_role === "outer")) || (i.category === "outer" && i.layer_role === "mid"));
+// 위 겉옷이 가운데 겹보다 10cm 이상 길어야 함(둘 다 총장이 있을 때, 없으면 위 겉옷이 긴 기장)
+const MID_GAP = 10, MID_INNER_MAX = 2;
+const covers = (out, mid) => !!out && !!mid && (out.length_cm != null && mid.length_cm != null ? out.length_cm - mid.length_cm >= MID_GAP : out.length === "long");
+// 한 조합 안에서 각 옷의 자리. 상의가 둘이고 겉옷이 없으면 "둘 다" 옷이 겉옷 자리로, 겉옷이 있으면 가운데 겹으로 간다.
+// 겉옷이 둘이면 가운데 겹이 될 수 있는 쪽(둘 다면 짧은 쪽)이 가운데.
 function roles(ids) {
   const its = [...new Set(ids)].map(byId).filter(Boolean); const m = new Map(its.map((i) => [i.id, slotOf(i)]));
-  const tops = its.filter((i) => m.get(i.id) === "top"); const hasOuter = its.some((i) => m.get(i.id) === "outer");
-  if (tops.length === 2 && !hasOuter) { const f = [...tops].reverse().find(isFlex); if (f) m.set(f.id, "outer"); }
+  const tops = its.filter((i) => m.get(i.id) === "top"); const outs = its.filter((i) => m.get(i.id) === "outer");
+  if (tops.length === 2 && !outs.length) { const f = [...tops].reverse().find(isFlex); if (f) m.set(f.id, "outer"); }
+  else if (tops.length === 2 && outs.length === 1) { const f = [...tops].reverse().find(isFlex); if (f) m.set(f.id, "mid"); }
+  else if (outs.length === 2) { const c = outs.filter(canMid); const f = c.length === 2 ? [...c].sort((a, b) => (a.length_cm ?? 999) - (b.length_cm ?? 999))[0] : c[0]; if (f) m.set(f.id, "mid"); }
   return m;
 }
 const slotIn = (ids, i) => roles(ids).get(i.id) || slotOf(i);
-const CORE = ["outer", "top", "bottom", "shoes"];
+const CORE = ["outer", "mid", "top", "bottom", "shoes"];
 const EXTRA = ["bag", "acc_earring", "acc_neck", "acc_wrist", "acc_socks", "acc_gloves"];
 const OCCS = ["dinner", "interview", "concert", "party"];
 const BARE_WRIST = ["short", "sleeveless", "three_quarter", "cap"];
@@ -1056,15 +1074,23 @@ function candidates() {
     if (s === "acc_gloves" && !isCold()) return false;
     if (weather && i.warmth != null && CORE.includes(s)) {
       if (weather.pm >= 24 && i.warmth >= 4) return false;
-      if (weather.am <= 8 && i.warmth <= 1) return false;
+      if (weather.am <= 8 && i.warmth <= 1 && !(s === "top" && i.category === "top")) return false;   // 얇은 상의는 가운데 겹 안에 입을 수 있어 남김 — 겹 없이 입는 건 validOutfit이 막음
     }
     if (s === "top" && !isFlex(i) && tooWarmTop(i)) return false;   // 가디건(둘 다)은 겉옷으로 남김 — 상의 자리는 validOutfit이 막음
     if (tooThinLower(i)) return false;
-    if (s === "outer" && wrongOuter(i)) return false;   // 가디건(둘 다)은 상의로 남김 — 겉옷 자리는 validOutfit이 막음
+    if (s === "outer" && wrongOuter(i) && !canMid(i)) return false;   // 가디건(둘 다)·블레이저(코트 안에도)는 가운데 겹으로 남김 — 겉옷 자리는 validOutfit이 막음
     return true;
   });
 }
-const pool = (slot, curId) => candidates().filter((i) => (slotOf(i) === slot || (slot === "outer" && isFlex(i))) && i.id !== curId);
+// o를 주면 그 조합 기준: 가운데 겹은 지금 겉옷이 덮는 것만, 겉옷은 지금 가운데 겹을 덮는 것만, 가운데 겹이 있을 때 안 상의는 가디건 아닌 것만
+function pool(slot, curId, o) {
+  const out = o && itemIn(o, "outer"), mid = o && itemIn(o, "mid");
+  return candidates().filter((i) => i.id !== curId && (
+    slot === "mid" ? canMid(i) && (!out || (i.id !== out.id && covers(out, i)))
+    : slot === "outer" ? ((slotOf(i) === "outer" && !wrongOuter(i)) || isFlex(i)) && (!mid || (i.id !== mid.id && covers(i, mid)))
+    : slot === "top" && mid ? slotOf(i) === "top" && !isFlex(i)
+    : slotOf(i) === slot));
+}
 const itemIn = (o, slot) => { const r = roles(o.items); return o.items.map(byId).find((i) => i && r.get(i.id) === slot); };
 const comboKey = (ids) => ids.map(byId).filter((i) => i && CORE.includes(slotOf(i))).map((i) => i.id).sort().join("|");
 
@@ -1108,7 +1134,8 @@ function fixAccessories(ids, legs) {
   const rl = roles(core.map((i) => i.id));
   const body = core.find((i) => rl.get(i.id) === "top");
   const dress = body?.category === "dress";
-  const bare = !!body && BARE_WRIST.includes(body.sleeve);
+  const cover = core.find((i) => rl.get(i.id) === "mid") || body;   // 가운데 겹이 있으면 손목은 그 소매로 봄(실내에서도 입고 있음)
+  const bare = !!cover && BARE_WRIST.includes(cover.sleeve);
   const get = (g) => acc.find((a) => slotOf(a) === g);
   const drop = (g) => { acc = acc.filter((a) => slotOf(a) !== g); };
   const interview = tpo === "special" && occ === "interview";
@@ -1156,6 +1183,10 @@ function validOutfit(o) {
   if (needOuter() && !has("outer") && pool("outer").length) return false;
   // 가디건(둘 다)을 상의로 입고 그 위에 겉옷을 또 입는 조합은 추운 날에만
   if (!isCold() && has("outer") && its.some((i) => isFlex(i) && rl.get(i.id) === "top")) return false;
+  // 세 겹은 추운 날에만 · 위 겉옷이 가운데 겹을 덮고 · 안 상의는 얇게(두께 2 이하)
+  const mid = its.find((i) => rl.get(i.id) === "mid");
+  if (mid && (!isCold() || !covers(its.find((i) => rl.get(i.id) === "outer"), mid) || its.some((i) => rl.get(i.id) === "top" && (i.warmth ?? 0) > MID_INNER_MAX))) return false;
+  if (!mid && weather && weather.am <= 8 && its.some((i) => rl.get(i.id) === "top" && i.category === "top" && i.warmth != null && i.warmth <= 1)) return false;   // 추운 아침 얇은 상의는 가운데 겹 안에만
   if (its.some((i) => rl.get(i.id) === "top" && tooWarmTop(i))) return false;   // 더운 낮에 두꺼운 상의
   if (its.some(tooThinLower)) return false;   // 쌀쌀한 아침에 한여름 하의·원피스·신발
   if (its.some((i) => rl.get(i.id) === "outer" && wrongOuter(i))) return false;   // 낮 기온에 안 맞는 겉옷 두께
@@ -1212,7 +1243,7 @@ ACCURACY OF THE REASON AND TIP (check every sentence against the items before yo
 
 function candLine(i) {
   const d = (i.design_lines || []).filter((x) => x && x !== "none").join("/");
-  return [sid(i), isFlex(i) ? "top|outer" : slotOf(i), i.name, i.subtype, `${i.color_name || ""}(${i.color_tone || "?"})`, i.pattern, i.length_cm ? `${i.length}·${i.length_cm}cm` : i.length, i.sleeve && `소매 ${i.sleeve}`, i.silhouette, i.neckline && `목선 ${i.neckline}`, i.warmth != null && `두께 ${i.warmth}`, i.heel_cm != null && `굽 ${i.heel_cm}cm`, i.metal, i.material || i.material_guess, d && `디자인 ${d}`, i.tuck && `${i.tuck}-tuck`, i.skirt_type, i.collar_type && `카라 ${i.collar_type}`, i.rain && "비OK", i.fit_note, i.condition_note, `최근 ${i.last_worn_on || "기록 없음"}`, i.styling_note_ko || i.notes].filter(Boolean).join(" | ");
+  return [sid(i), isFlex(i) ? "top|outer" : canMid(i) ? "outer|mid" : slotOf(i), i.name, i.subtype, `${i.color_name || ""}(${i.color_tone || "?"})`, i.pattern, i.length_cm ? `${i.length}·${i.length_cm}cm` : i.length, i.sleeve && `소매 ${i.sleeve}`, i.silhouette, i.neckline && `목선 ${i.neckline}`, i.warmth != null && `두께 ${i.warmth}`, i.heel_cm != null && `굽 ${i.heel_cm}cm`, i.metal, i.material || i.material_guess, d && `디자인 ${d}`, i.tuck && `${i.tuck}-tuck`, i.skirt_type, i.collar_type && `카라 ${i.collar_type}`, i.rain && "비OK", i.fit_note, i.condition_note, `최근 ${i.last_worn_on || "기록 없음"}`, i.styling_note_ko || i.notes].filter(Boolean).join(" | ");
 }
 async function askStylist(kind, payload, prompt) {
   if (MOCK) { const m = await import("./mock.js"); return m.ai(kind, payload); }
@@ -1255,8 +1286,9 @@ ${OUTFIT_RULES}
 
 You are the client's personal stylist. Build outfits ONLY from the candidate list (use the id in the first column exactly).
 Occasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${wx}
-Each outfit = one top, one bottom, one shoes${needOuter() ? ", one outer (morning is under 17°C)" : ", outer only if useful"}. A dress (slot "top", category dress) replaces top+bottom: then include NO bottom.
-Items marked top|outer (cardigans) can be worn EITHER as the top OR thrown on over another top as the outer. When one is the outer, list it together with a separate top and do NOT add another outer. ${isCold() ? "It is cold, so a top|outer item may also go under a coat." : "NEVER combine a top|outer item with a blazer, jacket or coat today — such outfits are discarded."} Items in slot outer are never the only top.
+Each outfit = one top, one bottom, one shoes${needOuter() ? ", one outer (morning is under 17°C)" : ", outer only if useful"}${isCold() ? ", and optionally one middle layer" : ""}. A dress (slot "top", category dress) replaces top+bottom: then include NO bottom.
+Items marked top|outer (cardigans, open shirts) can be worn EITHER as the top OR thrown on over another top as the outer. With no coat, such an item over a top IS the outer: do NOT add another outer. Items marked outer|mid (blazers, a tweed jacket) are outers that can also go under a longer coat. Items in slot outer are never the only top.
+${isCold() ? `It is cold, so THREE LAYERS are allowed: an inner top + a middle layer (a top|outer or outer|mid item) + a coat or padded jacket. Consider it now and then, not every time — one knit under a coat is just as good. She takes the coat off indoors and keeps the middle layer on all day, so the inner top + middle layer are what people see: they must look finished together, and the reason says how it looks once the coat is off. Outfits breaking these are discarded: the inner top is thin (두께 ${MID_INNER_MAX} or less); the coat is at least ${MID_GAP} cm longer than the middle layer (compare the cm). She does not like an inner top showing below a cropped cardigan: avoid it, or make the tip "tuck it in". A top|outer item may also be the only top under a coat. Thin tops (두께 1) only under a middle layer today.` : "NEVER combine a top|outer item with a blazer, jacket or coat today, and no middle layers — such outfits are discarded."}
 Optional: one bag, and accessories — at most one per group: acc_earring, acc_neck (necklace or scarf), acc_wrist (bracelet or ring), acc_socks${isCold() ? ", acc_gloves" : ""}. One eye-catching piece per outfit; match metal colors.
 Legs: with trousers and closed shoes ALWAYS include one acc_socks item that suits the trousers and shoes${weather && weather.am >= 17 ? " — except ankle-length trousers with loafers or sneakers, where she wears no-show socks: leave socks out" : ""}. With a skirt or dress, ${weather && weather.am < HOSE_AM ? "NEVER include acc_socks this morning (too cold for bare legs above socks — she wears tights; do not mention socks in why or tip)" : "include acc_socks ONLY when visible socks suit the shoes (sneakers, loafers, ankle boots); otherwise leave socks out"} — the app adds stockings, no-show socks or bare legs by temperature. Never socks with sandals or mules.
 ${hotDay() ? `Warm afternoon (high ${weather.hi ?? weather.pm}°C): the top stays on all day, so it must be light (두께 ${HOT_TOP_MAX} or less) — knits and other thick tops are discarded. ${needOuter() ? "The outer covers the cool morning and comes off later: choose one that is easy to take off and carry." : ""}` : ""}
@@ -1269,8 +1301,8 @@ Priority: her own signals (saved outfits, swaps) > weather and occasion > the bo
 Saved combinations (her taste: the "safe" card follows this style, but is a fresh outfit, not a copy): ${JSON.stringify(short(taste).slice(0, 30))}.
 ${bannedShort.length ? `She hid these top-and-bottom pairs (a single id = a dress): never put them together again, whatever the outer and shoes: ${JSON.stringify(bannedShort)}.` : ""}
 ${reviews.length ? `Her own reviews after wearing — the strongest signal, notes are in Korean. "bad": never return that combination and avoid what the note complains about. "good": build on what worked. ${JSON.stringify(reviews.map((r) => ({ items: coreSids(r.items || []), rating: r.rating, note: r.note ? String(r.note).slice(0, 200) : undefined })))}.` : ""}
-Tops, bottoms and dresses she wore in the last few days${seen.size ? " or already saw suggested today" : ""} are already left out of the candidates; outers and shoes may repeat.
-${no.length ? `These outfits were just shown to her. EVERY outfit you return must differ from EACH of them in at least TWO of outer/top/bottom/shoes: ${JSON.stringify(no.map(coreSids))}.` : ""}
+Tops, bottoms and dresses she wore in the last few days${seen.size ? " or already saw suggested today" : ""} are already left out of the candidates; outers, middle layers and shoes may repeat.
+${no.length ? `These outfits were just shown to her. EVERY outfit you return must differ from EACH of them in at least TWO of outer/middle layer/top/bottom/shoes: ${JSON.stringify(no.map(coreSids))}.` : ""}
 
 Return JSON only:
 {"outfits":[
@@ -1278,7 +1310,7 @@ Return JSON only:
  {"kind":"vary", ...},
  {"kind":"dare", ...}
 ]}
-safe = her proven formula. vary = the safe outfit with EXACTLY ONE of outer/top/bottom/shoes changed. dare = at least TWO of those changed, a pairing she has not worn; if nothing passes the rules, use null for dare.
+safe = her proven formula. vary = the safe outfit with EXACTLY ONE of outer/middle layer/top/bottom/shoes changed (adding or removing a middle layer counts as one). dare = at least TWO of those changed, a pairing she has not worn; if nothing passes the rules, use null for dare.
 score = structure 60 (length, proportion, shoulder, hip balance, collar) + color near the face 20 + occasion and weather 20. Similar outfits must score within ±3. top = estimated upper-body share of visual weight in % (50 is the target).
 
 Candidates (id | slot | name | type | color(tone) | pattern | length | ... | how she wears it):
@@ -1440,14 +1472,15 @@ async function openWearLog() {
   const month = (d) => lang === "en" ? new Date(d + "T12:00:00").toLocaleDateString("en-GB", { month: "long" }) : `${Number(d.slice(5, 7))}월`;
   const card = (r) => {
     const o = ofit.get(r.outfit_id); const set = { items: (r.items || []).filter(byId) };
-    const dress = itemIn(set, "top")?.category === "dress";
-    const cellsOf = ["outer", "top", ...(dress ? [] : ["bottom"]), "shoes"].map((s) => itemIn(set, s)).filter(Boolean);
+    const dress = itemIn(set, "top")?.category === "dress"; const mid = itemIn(set, "mid");
+    const cellsOf = ["outer", "top", ...(dress ? [] : ["bottom"]), "shoes"].map((s) => (s === "top" && mid ? [mid, itemIn(set, "top")].filter(Boolean) : itemIn(set, s))).filter((x) => x && (!Array.isArray(x) || x.length));
+    const img = (i) => { const cut = i.cut_path && urlCache.get(i.cut_path); return thumbOf(i) ? `<img class="${cut ? "cut" : "raw"}" src="${esc(thumbOf(i))}" alt="" loading="lazy">` : ""; };
     const extras = EXTRA.map((s) => itemIn(set, s)).filter(Boolean);
     const lg = o?.gauge?.legs && o.gauge.legs !== "socks" ? t("legs")[o.gauge.legs]?.[2] : "";
     const w = wx[r.worn_on]; const tp = tpoName(o);
     return `<button class="wcard" data-w="${r.id}">
       <div class="hd"><b>${dayLabel(r.worn_on).replace(/(\d+)/g, '<span class="n">$1</span>')}${tp ? " · " + esc(tp) : ""}</b>${w ? `<span class="wt n">${w.lo}°<small>/</small>${w.hi}°</span>` : ""}</div>
-      <div class="sheet2">${cellsOf.map((i) => { const cut = i.cut_path && urlCache.get(i.cut_path); return `<div><div class="ph">${thumbOf(i) ? `<img class="${cut ? "cut" : "raw"}" src="${esc(thumbOf(i))}" alt="" loading="lazy">` : ""}</div><div class="nm">${esc(nameOf(i))}</div></div>`; }).join("")}</div>
+      <div class="sheet2">${cellsOf.map((c) => { const L = [].concat(c); return `<div><div class="ph ${L.length > 1 ? "duo2" : ""}">${L.map(img).join("")}</div><div class="nm">${L.map((i) => esc(nameOf(i))).join(" + ")}</div></div>`; }).join("")}</div>
       ${extras.length || lg ? `<div class="wacc">${extras.map((i) => `<img src="${esc(thumbOf(i))}" alt="${esc(nameOf(i))}" loading="lazy">`).join("")}${lg ? `<span class="legs">${esc(lg)}</span>` : ""}</div>` : ""}
       ${r.rating ? `<div class="wrv"><span class="r ${r.rating}">${RV(r.rating)}</span>${r.note ? `<span class="m">${esc(r.note)}</span>` : ""}</div>` : `<div class="wrv ask">${RV("write")}</div>`}
     </button>`;
@@ -1490,10 +1523,21 @@ function slotCell(o, s, span) {
   return `<div class="cell ${span ? "span" : ""}"><div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div><span class="k ${pinned || hue ? "pin" : ""}">${t("slot")[s]}${pinned ? " · " + t("pinMark") : hue ? " · " + hue : ""}</span><span class="nm">${esc(nameOf(it))}</span>${skin === "pc" ? `<span class="pos n">${stepPos(o, s, it)}</span>` : ""}<button class="arr" data-step="-1" aria-label="${t("step")[0]}">${icon("i-back", "i s")}</button><button class="arr nx" data-step="1" aria-label="${t("step")[1]}">${icon("i-chev", "i s")}</button></div>`;
 }
 function cells(o) {
-  const dress = itemIn(o, "top")?.category === "dress"; const list = [];
+  const dress = itemIn(o, "top")?.category === "dress"; const list = []; const mid = itemIn(o, "mid");
   if (needOuter() || itemIn(o, "outer")) list.push("outer");
   list.push("top"); if (!dress) list.push("bottom"); list.push("shoes");
-  return list.map((s, i) => slotCell(o, s, list.length % 2 === 1 && i === list.length - 1)).join("");
+  return list.map((s, i) => (s === "top" && mid ? duoCell(o, mid) : slotCell(o, s, list.length % 2 === 1 && i === list.length - 1))).join("");
+}
+// 가운데 겹의 칸 이름: 겉옷(블레이저·재킷) · 셔츠 · 가디건
+const midKind = (i) => i.category === "outer" ? "jacket" : /셔츠|shirt/i.test([i.subtype, i.subtype_en, i.name].filter(Boolean).join(" ")) ? "shirt" : "cardigan";
+// 세 겹: 상의 칸을 반반으로 — 가운데 겹 | 안 상의. 반 칸마다 밀어서 바꾸고, 누르면 "실내에서는 이렇게 보여요"(openLayerSheet).
+// 칸 이름 테이프(체크 테마)는 칸에 하나만(.k.tape), 반 칸 이름은 그 아래.
+function duoCell(o, mid) {
+  const top = itemIn(o, "top"); const L = t("lay");
+  const half = (s, it, k) => [`<div class="slot photo" data-slot="${s}" data-id="${it.id}" role="button" tabindex="0" aria-label="${esc(nameOf(it))}"><div class="track"><img class="${it.cut_path && urlCache.get(it.cut_path) ? "cut" : "raw"}" src="${esc(thumbOf(it))}" alt=""></div></div>`,
+    `<div><span class="k ${rec.pin === it.id ? "pin" : ""}">${k}${rec.pin === it.id ? " · " + t("pinMark") : ""}</span><span class="nm">${esc(nameOf(it))}</span></div>`];
+  const hs = [half("mid", mid, L[midKind(mid)]), ...(top ? [half("top", top, L.inner)] : [])];
+  return `<div class="cell duo-cell"><div class="duo">${hs.map((h) => h[0]).join("")}</div><span class="k tape">${t("slot").top}</span><div class="duo-cap">${hs.map((h) => h[1]).join("")}</div></div>`;
 }
 function extrasHtml(o) {
   const shown = EXTRA.filter((s) => itemIn(o, s) || s === "bag" || (s !== "acc_gloves" && pool(s).length));
@@ -1565,18 +1609,47 @@ function bindGesture(el) {
 // 사진을 누르면: 원래 사진 크게 + 입는 법 + 바꾸기 · 고정 · 제외
 function openItemSheet(s, it) {
   if (!it) return;
+  const main = rec.outfits[rec.main];
+  if (s === "mid" || (s === "top" && itemIn(main, "mid"))) return openLayerSheet(it);
   const note = lang === "en" ? (it.styling_note_en || it.styling_note_ko) : (it.styling_note_ko || it.notes);
+  // 두 겹 날 상의 칸: 코트·재킷 아래에 가디건을 하나 더 걸칠 수 있음(기온 제한 없음 — 직접 고른 조합)
+  const out = s === "top" && it.category === "top" && itemIn(main, "outer");
+  const addMid = !!out && out.category === "outer" && pool("mid", null, main).some((x) => !main.items.includes(x.id));
   const src = urlCache.get(it.thumb_path) || thumbOf(it); const pinned = rec.pin === it.id; const extra = !CORE.includes(s);
   openModal(`<div class="sheet-ph"><img src="${esc(src)}" alt=""></div>
     <p class="sheet-k">${t("slot")[s]}${it.brand ? " · " + esc(it.brand) : ""}</p>
     <h2 class="sheet-nm">${esc(nameOf(it))}</h2>
     ${note ? `<p class="sheet-note"><b>${t("howTo")}</b>${esc(note)}</p>` : ""}
     <button class="btn pri big" data-sh="swap">${t("change")}</button>
+    ${addMid ? `<button class="btn line" data-sh="mid" style="margin-top:8px">${icon("i-plus", "i xs b")}${t("lay").add}</button>` : ""}
     <div class="modal-row sheet-row"><button class="btn line" data-sh="pin">${icon("i-pin", "i xs")}${pinned ? t("unpinBtn") : t("pinBtn")}</button>${extra ? `<button class="btn line" data-sh="off">${t("takeOff")}</button>` : `<button class="btn line" data-sh="pause">${icon("i-ban", "i xs")}${t("pause")}</button>`}</div>`, "sheet");
   const on = (k, fn) => { const b = $("modal").querySelector(`[data-sh="${k}"]`); if (b) b.onclick = () => { closeModal(); fn(); }; };
-  on("swap", () => pickExtra(s)); on("pin", () => togglePin(it.id)); on("pause", () => pauseFromToday(it));
-  on("off", () => { const main = rec.outfits[rec.main]; main.items = main.items.filter((id) => id !== it.id); main.edited = true; persistRec(); drawRec(); });
+  on("swap", () => pickExtra(s)); on("pin", () => togglePin(it.id)); on("pause", () => pauseFromToday(it)); on("mid", () => pickExtra("mid"));
+  on("off", () => { main.items = main.items.filter((id) => id !== it.id); main.edited = true; persistRec(); drawRec(); });
   if (s === "acc_socks") { const b = $("modal").querySelector('[data-sh="swap"]'); b.textContent = t(showsLeg(rec.outfits[rec.main]) ? "legsSwap" : "legsSwapT"); b.onclick = () => { closeModal(); pickLegs(); }; }
+}
+// 세 겹 칸을 누르면: 실내 모습(가운데 겹 + 안 상의)을 한 장으로 + 바꾸기 · 가운데 겹 빼기. 고정·제외는 누른 옷에.
+function openLayerSheet(tapped) {
+  const main = rec.outfits[rec.main]; const mid = itemIn(main, "mid"), top = itemIn(main, "top"); const L = t("lay");
+  if (!mid) return;
+  const ph = (i) => `<div class="ph"><img src="${esc(urlCache.get(i.thumb_path) || thumbOf(i))}" alt=""></div>`;
+  openModal(`<div class="sheet-pair">${ph(mid)}${top ? ph(top) : ""}</div>
+    <p class="sheet-k">${L.indoor}</p>
+    <h2 class="sheet-nm">${esc(top ? L.under(nameOf(mid), nameOf(top)) : nameOf(mid))}</h2>
+    <button class="btn pri big" data-sh="mid">${L.swapMid(L[midKind(mid)])}</button>
+    ${top ? `<button class="btn line" data-sh="top" style="margin-top:8px">${L.swapIn}</button>` : ""}
+    <button class="btn line" data-sh="drop" style="margin-top:8px">${L.drop}</button>
+    <p class="sheet-k">${esc(nameOf(tapped))}</p>
+    <div class="modal-row sheet-row"><button class="btn line" data-sh="pin">${icon("i-pin", "i xs")}${rec.pin === tapped.id ? t("unpinBtn") : t("pinBtn")}</button><button class="btn line" data-sh="pause">${icon("i-ban", "i xs")}${t("pause")}</button></div>`, "sheet");
+  const on = (k, fn) => { const b = $("modal").querySelector(`[data-sh="${k}"]`); if (b) b.onclick = () => { closeModal(); fn(); }; };
+  on("mid", () => pickExtra("mid")); on("top", () => pickExtra("top")); on("pin", () => togglePin(tapped.id)); on("pause", () => pauseFromToday(tapped));
+  on("drop", () => {
+    if (mid.id === rec.pin) return toast(t("swapPin"));
+    main.items = fixAccessories(main.items.filter((id) => id !== mid.id), main.legs);
+    main.edited = true; main.tag = { ko: `${mid.name} → ${t("none")}`, en: `${nameOfEn(mid)} → None` };
+    main.score = null; main.reason = { ko: "", en: "" }; main.tip = { ko: "", en: "" };
+    persistRec(); drawRec();
+  });
 }
 // 밀어서 나오는 순서 = 어울리는 순: 처음 추천된 옷 → 다른 안(변주·도전)에 나온 옷 → 처음 옷과 색이 가까운 순.
 // 순서는 그 칸에서 처음 밀 때 한 번 정해 두고(main.swipe), 왼쪽으로 밀면 다음, 오른쪽으로 밀면 이전.
@@ -1584,14 +1657,14 @@ function swipeOrder(main, s, cur) {
   const saved = main.swipe?.[s];
   if (saved && (!cur || saved.includes(cur.id))) return saved;
   const alt = new Set(rec.outfits.filter((o) => o && o !== main).map((o) => itemIn(o, s)?.id).filter(Boolean));
-  const rest = pool(s, cur?.id).map((x, n) => ({ x, n })).sort((a, b) => (alt.has(b.x.id) - alt.has(a.x.id)) || (colorGap(a.x, cur) - colorGap(b.x, cur)) || (a.n - b.n));
+  const rest = pool(s, cur?.id, main).map((x, n) => ({ x, n })).sort((a, b) => (alt.has(b.x.id) - alt.has(a.x.id)) || (colorGap(a.x, cur) - colorGap(b.x, cur)) || (a.n - b.n));
   const order = [...(cur ? [cur.id] : []), ...rest.map((r) => r.x.id)];
   main.swipe = { ...main.swipe, [s]: order };
   return order;
 }
 // 그 칸에서 밀거나 ◀ ▶로 돌아가는 목록: 바꿀 수 있는 옷(지금 조합에 없는 것)만, 어울리는 순
 function stepList(main, s, cur) {
-  const ok = new Set(pool(s, cur?.id).filter((x) => !main.items.includes(x.id)).map((x) => x.id));
+  const ok = new Set(pool(s, cur?.id, main).filter((x) => !main.items.includes(x.id)).map((x) => x.id));
   return { ok, order: swipeOrder(main, s, cur).filter((id) => ok.has(id) || id === cur?.id) };
 }
 // 옷장 컴퓨터 테마의 "3/9" — 그 목록에서 지금 옷의 자리
@@ -1658,6 +1731,7 @@ async function openJudge() {
 ${OUTFIT_RULES}
 Occasion: ${tpo === "special" ? OCC_EN[occ] : TPO_EN[tpo]}. ${weather ? `Commute ${weather.am}°C, daytime high ${weather.hi ?? weather.pm}°C, return ${weather.pm}°C, rain ${weather.rain}%.` : ""}
 Legs: ${legsLine(main)}.
+${itemIn(main, "mid") ? `Layers: ${nameOfEn(itemIn(main, "top"))} under ${nameOfEn(itemIn(main, "mid"))} under ${nameOfEn(itemIn(main, "outer"))}. Indoors the outer comes off and the middle layer stays on, so judge the inner top + middle layer as the look people see all day.` : ""}
 ${main.tip?.en || main.tip?.ko ? `How she will wear it (the tip given with this outfit): "${main.tip.en || main.tip.ko}". Judge the outfit worn this way; what this tip already fixes (for example a long outer worn open so the waistline shows) is not the issue.` : ""}
 She put this outfit together and asks for an HONEST verdict, not encouragement. Judge it as her stylist would: body proportion, color near the face, the occasion and the weather.
 - verdict: "good" = wear it as is; "ok" = wearable, but one thing holds it back; "weak" = one piece clearly works against her body, her face colors, the occasion or the weather.
@@ -1699,8 +1773,8 @@ function pickLegs() {
   $("modal").querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => { closeModal(); main.legs = "socks"; swapTo("acc_socks", byId(b.dataset.id)); }));
 }
 function pickExtra(s) {
-  const main = rec.outfits[rec.main]; const cur = itemIn(main, s); const pl = pool(s);
-  openModal(`<h2>${t("slot")[s]}</h2><div class="list">${cur && !CORE.includes(s) ? `<button data-id="">${icon("i-x", "i s")}<span>${t("takeOff")}</span></button>` : ""}${pl.map((i) => `<button data-id="${i.id}" class="${cur?.id === i.id ? "on" : ""}"><img src="${esc(thumbOf(i))}" alt="" loading="lazy"><span>${esc(nameOf(i))}</span>${cur?.id === i.id ? icon("i-check", "i s b") : ""}</button>`).join("") || `<p class="muted small" style="padding:16px 0">${t("noSwap")}</p>`}</div>`);
+  const main = rec.outfits[rec.main]; const cur = itemIn(main, s); const pl = pool(s, null, main).filter((i) => i.id === cur?.id || !main.items.includes(i.id));
+  openModal(`<h2>${s === "mid" && !cur ? t("lay").add : t("slot")[s]}</h2><div class="list">${cur && !CORE.includes(s) ? `<button data-id="">${icon("i-x", "i s")}<span>${t("takeOff")}</span></button>` : ""}${pl.map((i) => `<button data-id="${i.id}" class="${cur?.id === i.id ? "on" : ""}"><img src="${esc(thumbOf(i))}" alt="" loading="lazy"><span>${esc(nameOf(i))}</span>${cur?.id === i.id ? icon("i-check", "i s b") : ""}</button>`).join("") || `<p class="muted small" style="padding:16px 0">${t("noSwap")}</p>`}</div>`);
   $("modal").querySelectorAll("[data-id]").forEach((b) => (b.onclick = () => {
     closeModal();
     if (!b.dataset.id) { main.items = main.items.filter((id) => id !== cur.id); main.edited = true; persistRec(); drawRec(); return s === "acc_socks" && showsLeg(main) ? pickLegs() : undefined; }
@@ -1766,8 +1840,9 @@ async function pauseFromToday(it) {
   // 제외된 옷은 같은 칸의 다른 옷으로 대체. 필수 칸을 못 채우면 그 안은 비우고, 아우터는 빈 칸으로 둠.
   rec.outfits = rec.outfits.map((o) => {
     if (!o || !o.items.includes(it.id)) return o;
-    const s = slotOf(it); const alt = pool(s).find((x) => !o.items.includes(x.id));
-    const ids = o.items.filter((id) => id !== it.id);
+    const s = slotIn(o.items, it); const ids = o.items.filter((id) => id !== it.id);
+    if (s === "mid") return { ...o, items: fixAccessories(ids, o.legs) };   // 가운데 겹은 빼기만(두 겹으로)
+    const alt = pool(s).find((x) => !o.items.includes(x.id));
     if (alt) return { ...o, items: fixAccessories([...ids, alt.id], o.legs) };
     return CORE.includes(s) && s !== "outer" ? null : { ...o, items: ids };
   });
@@ -2058,7 +2133,7 @@ function openSettings() {
     <button class="btn pri big" id="st-save">${S.save}</button>
     <button class="btn ghost" id="st-bans">${t("bans").open}</button>
     <div class="modal-row"><button class="btn txt" id="st-export">${S.exp}</button><button class="btn txt" id="st-logout">${S.logout}</button></div>
-    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.2</p>`);
+    <p class="muted small" style="margin-top:10px">${esc(me?.email || "")} · v3.3</p>`);
   const sel = $("st-model"), msg = $("st-model-msg");
   let loadedFor = null;
   const loadModels = async () => {
